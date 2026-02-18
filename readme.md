@@ -22,7 +22,7 @@ Traditional SIEM tools like Splunk generate alerts but require human analysts to
 
 ---
 
-## 🎯 Problem Statement
+## Problem Statement
 
 <table>
 <tr>
@@ -53,7 +53,7 @@ Traditional SIEM tools like Splunk generate alerts but require human analysts to
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 <div align="center">
 
@@ -72,7 +72,7 @@ Traditional SIEM tools like Splunk generate alerts but require human analysts to
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 <div align="center">
 
@@ -335,14 +335,6 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License**.
-
----
 
 ## 🤝 Contributing
 
