@@ -12,26 +12,28 @@ model = genai.GenerativeModel("gemini-2.5-flash")
 
 def investigate_logs(log_text: str):
 
+    # Step 1: Retrieve MITRE knowledge
     context = retrieve_context(log_text)
 
+    # Step 2: Build SOC investigation prompt
     prompt = f"""
-You are an expert SOC security analyst.
+You are an expert SOC analyst.
 
-Analyze the following security logs and identify suspicious activity.
+Analyze the following security logs and determine if an attack occurred.
 
 Logs:
 {log_text}
 
-Relevant cybersecurity knowledge:
+Relevant MITRE ATT&CK knowledge:
 {context}
 
-Return JSON with:
-attack_stage
-mitre_technique
-severity
-confidence
-explanation
-recommended_actions
+Return a structured report containing:
+- attack_stage
+- mitre_technique
+- severity
+- confidence
+- explanation
+- recommended_actions
 """
 
     response = model.generate_content(prompt)
