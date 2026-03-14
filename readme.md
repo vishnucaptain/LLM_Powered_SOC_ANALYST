@@ -2,11 +2,12 @@
 
 <div align="center">
 
-### Autonomous Security Investigation using Gemini LLM and Retrieval-Augmented Generation (RAG)
+### Autonomous Security Investigation using Gemini LLM, Behavioral Analysis, and Retrieval-Augmented Generation (RAG)
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![LLM](https://img.shields.io/badge/LLM-Gemini-FF6F00?style=for-the-badge&logo=google&logoColor=white)
+![Vector DB](https://img.shields.io/badge/VectorDB-Chroma-6A1B9A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Active-00C853?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-FFC107?style=for-the-badge)
 
@@ -14,345 +15,424 @@
 
 ---
 
-## 📖 Overview
+# 📖 Overview
 
-**LLM-Powered SOC Analyst** is an autonomous cybersecurity investigation system that leverages Large Language Models (Gemini) to analyze security logs, reconstruct attack timelines, and map threats to the **MITRE ATT&CK** framework.
+**LLM-Powered SOC Analyst** is an AI-driven cybersecurity investigation system designed to automate the analysis of security logs and reconstruct attack timelines.
 
-Traditional SIEM tools like Splunk generate alerts but require human analysts to investigate. This system performs **autonomous investigation**, reasoning over complete attack sequences and providing actionable intelligence.
+Traditional SIEM platforms such as Splunk generate alerts but still require human analysts to manually investigate incidents. This project introduces an **autonomous investigation pipeline** that processes raw logs, extracts security events, analyzes behavior patterns, retrieves cybersecurity knowledge using RAG, and generates structured incident reports.
 
----
+The system combines:
 
-## Problem Statement
+- **Behavioral analysis of log sequences**
+- **Retrieval-Augmented Generation (RAG)**
+- **MITRE ATT&CK threat intelligence**
+- **Large Language Model reasoning (Gemini)**
 
-<table>
-<tr>
-<td width="50%">
-
-### Challenges in Security Operations Centers
-
-- 📊 **Massive volumes** of security logs
-- ⚠️ **High false positive** rates
-- 🔍 **Manual investigation** workload
-- 😰 **Alert fatigue** among analysts
-- ⏱️ **Slow incident response** times
-
-</td>
-<td width="50%">
-
-### Our Solution
-
-✅ **LLM-powered reasoning** over security events  
-✅ **Autonomous investigation** capabilities  
-✅ **RAG-based knowledge** grounding  
-✅ **MITRE ATT&CK** technique mapping  
-✅ **Explainable AI** security analysis  
-
-</td>
-</tr>
-</table>
+The result is an AI system capable of **detecting multi-stage attacks and generating explainable incident reports.**
 
 ---
 
-##  Key Features
+# 🚨 Problem Statement
 
-<div align="center">
+Security Operations Centers face several challenges:
+
+| Problem | Description |
+|------|------|
+| 📊 Massive log volumes | Security infrastructure generates huge volumes of logs |
+| ⚠️ High false positives | Alert fatigue reduces analyst efficiency |
+| 🔍 Manual investigation | SOC analysts spend significant time correlating events |
+| ⏱️ Slow incident response | Delayed investigations increase risk |
+| 🧠 Knowledge gap | Analysts must manually map threats to MITRE ATT&CK |
+
+---
+
+# ✅ Solution
+
+The proposed system automates SOC investigations using AI.
+
+Key capabilities include:
+
+- **Log ingestion and normalization**
+- **Security event extraction**
+- **Behavioral sequence analysis**
+- **Threat intelligence retrieval (MITRE ATT&CK)**
+- **LLM-powered investigation**
+- **Automated incident reporting**
+
+---
+
+# ✨ Key Features
 
 | Feature | Description |
-|---------|-------------|
-| 🤖 **Autonomous Investigation** | Gemini LLM analyzes security logs without human intervention |
-| 📚 **RAG Knowledge Base** | Grounds analysis in MITRE ATT&CK framework |
-| 🎯 **Threat Mapping** | Automatically maps threats to MITRE techniques |
-| ⏳ **Timeline Reconstruction** | Reconstructs complete attack sequences |
-| 📄 **Structured Reports** | Generates comprehensive incident reports |
-| 📊 **Confidence Scoring** | Provides severity classification and confidence levels |
-| 💡 **Explainable AI** | Transparent reasoning for security decisions |
-| 👥 **Human-in-the-Loop** | Supports analyst decision-making |
-
-</div>
+|------|------|
+| 🤖 Autonomous Investigation | AI investigates security logs without human prompts |
+| 📚 RAG Knowledge Base | MITRE ATT&CK knowledge grounding |
+| 🔍 Behavioral Analysis | Detects suspicious sequences of activity |
+| 🎯 Threat Mapping | Maps events to MITRE ATT&CK techniques |
+| ⏳ Timeline Reconstruction | Reconstructs attack chains |
+| 📄 Structured Reports | Generates actionable incident reports |
+| 📊 Confidence Scoring | Provides severity and confidence levels |
+| 💡 Explainable AI | Transparent reasoning for investigation results |
+| 👥 Human-in-the-loop | SOC analysts review and validate findings |
 
 ---
 
-## Architecture
-
-<div align="center">
+# 🏗️ System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           🛡️ SOC ANALYST INTERFACE                      │
-│                     (Human Review & Response Actions)                   │
-└────────────────────────────────┬────────────────────────────────────────┘
-                                 │
-┌────────────────────────────────▼────────────────────────────────────────┐
-│                      📋 INCIDENT REPORT GENERATOR                       │
-│         (Attack Stage, MITRE Mapping, Severity, Remediation)            │
-└────────────────────────────────┬────────────────────────────────────────┘
-                                 │
-┌────────────────────────────────▼────────────────────────────────────────┐
-│                       🔍 INVESTIGATION ENGINE                           │
-│         (Timeline Reconstruction, Event Correlation, Analysis)          │
-└─────────────┬───────────────────────────────────────┬────────────────────┘
-              │                                       │
-┌─────────────▼──────────────┐          ┌────────────▼──────────────────┐
-│   🤖 GEMINI LLM AGENT      │          │    📚 RAG KNOWLEDGE BASE      │
-│  (Reasoning & Analysis)    │◄────────►│  (MITRE ATT&CK + ChromaDB)   │
-└─────────────┬──────────────┘          └───────────────────────────────┘
-              │
-┌─────────────▼──────────────────────────────────────────────────────────┐
-│                      ⚡ FASTAPI ORCHESTRATOR                            │
-│              (Central Controller & Processing Coordinator)              │
-└─────────────┬──────────────────────────────────────────────────────────┘
-              │
-┌─────────────▼──────────────────────────────────────────────────────────┐
-│                      📥 LOG INGESTION LAYER                             │
-│           (Collection, Cleaning, Normalization, Structuring)            │
-└─────────────┬──────────────────────────────────────────────────────────┘
-              │
-┌─────────────▼──────────────────────────────────────────────────────────┐
-│                          📡 LOG SOURCES                                 │
-│         (Authentication, Process Execution, Network Activity)           │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-</div>
-
----
-
-### 📦 Component Description
-
-<details>
-<summary><b>1. 📡 Log Sources</b></summary>
-
-Provides raw security telemetry:
-- 🔐 Authentication logs  
-- ⚙️ Process execution logs  
-- 🌐 Network activity logs  
-
-</details>
-
-<details>
-<summary><b>2. 📥 Log Ingestion Layer</b></summary>
-
-Responsible for:
-- 📨 Collecting logs from multiple sources
-- 🧹 Cleaning and normalizing data  
-- 📋 Converting logs into structured format  
-
-</details>
-
-<details>
-<summary><b>3. ⚡ FastAPI Orchestrator</b></summary>
-
-Acts as the central controller:
-- 📩 Receives logs
-- 🎯 Coordinates processing
-- 🤖 Calls Gemini LLM agent
-- 📚 Retrieves knowledge from RAG system
-
-</details>
-
-<details>
-<summary><b>4. 🤖 Gemini LLM Agent (Reasoning Core)</b></summary>
-
-Performs:
-- 🔍 Autonomous log investigation
-- 🧠 Threat reasoning and analysis
-- 🎯 Attack pattern identification
-
-</details>
-
-<details>
-<summary><b>5. 📚 RAG Knowledge Base</b></summary>
-
-Provides grounded cybersecurity knowledge:
-- 🎯 MITRE ATT&CK framework
-- 🗄️ Vector database (ChromaDB)
-- 🔎 Semantic retrieval
-
-</details>
-
-<details>
-<summary><b>6. 🔍 Investigation Engine</b></summary>
-
-Responsible for:
-- ⏳ Timeline reconstruction
-- 🔗 Event correlation
-- 📊 Attack sequence analysis
-
-</details>
-
-<details>
-<summary><b>7. 📋 Incident Report Generator</b></summary>
-
-Generates structured reports:
-- 🎭 Attack stage identification
-- 🎯 MITRE technique mapping
-- ⚠️ Severity level assessment
-- 📊 Confidence score
-- 💡 Recommended remediation actions
-
-</details>
-
-<details>
-<summary><b>8. 🛡️ SOC Analyst Interface</b></summary>
-
-Allows human analyst to:
-- 📖 Review investigation results
-- ✅ Validate findings
-- 🚀 Take response actions
-
-</details>
-
----
-
-### ✨ Architecture Highlights
-
-```diff
-+ Modular and scalable design  
-+ Agent-based investigation model  
-+ LLM-powered reasoning engine  
-+ Knowledge-grounded threat analysis  
-+ Explainable incident reporting  
+┌───────────────────────────────────────────────────────────────┐
+│                   🛡️ SOC ANALYST DASHBOARD                    │
+│             Human Review & Response Actions                   │
+└───────────────────────────┬───────────────────────────────────┘
+                            │
+┌───────────────────────────▼───────────────────────────────────┐
+│                 📋 INCIDENT REPORT GENERATOR                  │
+│  (Attack Timeline, MITRE Mapping, Severity, Remediation)      │
+└───────────────────────────┬───────────────────────────────────┘
+                            │
+┌───────────────────────────▼───────────────────────────────────┐
+│                    🔍 INVESTIGATION ENGINE                    │
+│  (Attack Correlation, Timeline Reconstruction, Reasoning)     │
+└───────────────┬───────────────────────────────┬───────────────┘
+                │                               │
+┌───────────────▼───────────────┐   ┌───────────▼────────────────┐
+│        🤖 GEMINI LLM          │   │       📚 RAG SYSTEM        │
+│    Threat Reasoning Engine    │◄──► MITRE ATT&CK Knowledge DB │
+└───────────────┬───────────────┘   └────────────────────────────┘
+                │
+┌───────────────▼───────────────────────────────────────────────┐
+│                   🧠 BEHAVIOR ANALYSIS LAYER                  │
+│        Sequence Detection / LSTM (Optional)                  │
+└───────────────┬───────────────────────────────────────────────┘
+                │
+┌───────────────▼───────────────────────────────────────────────┐
+│                    🔄 EVENT EXTRACTION ENGINE                 │
+│      Converts raw logs into security-relevant events         │
+└───────────────┬───────────────────────────────────────────────┘
+                │
+┌───────────────▼───────────────────────────────────────────────┐
+│                     📥 LOG NORMALIZATION                      │
+│         Cleans and structures logs from multiple sources      │
+└───────────────┬───────────────────────────────────────────────┘
+                │
+┌───────────────▼───────────────────────────────────────────────┐
+│                        📡 LOG INGESTION                       │
+│   osquery logs • authentication logs • network logs • system logs │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔄 Project Workflow
+# ⚙️ Component Description
 
-<div align="center">
+## 📡 Log Ingestion Layer
 
-```mermaid
-graph TD
-    A[📡 Log Ingestion] --> B[📥 Log Processing]
-    B --> C[🤖 Autonomous Investigation]
-    C --> D[📚 Knowledge Retrieval - RAG]
-    D --> E[⏳ Timeline Reconstruction]
-    E --> F[📋 Incident Report Generation]
-    F --> G[👤 Human Analyst Review]
-    
-    style A fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style B fill:#2196F3,stroke:#1565C0,color:#fff
-    style C fill:#FF9800,stroke:#E65100,color:#fff
-    style D fill:#9C27B0,stroke:#4A148C,color:#fff
-    style E fill:#F44336,stroke:#B71C1C,color:#fff
-    style F fill:#00BCD4,stroke:#006064,color:#fff
-    style G fill:#FFC107,stroke:#F57F17,color:#000
+Collects raw telemetry from multiple sources:
+
+- osquery endpoint logs
+- authentication logs
+- process execution logs
+- network activity logs
+
+---
+
+## 📥 Log Normalization Layer
+
+Converts heterogeneous logs into structured format.
+
+Example:
+
+Raw log
+
+```
+cmdline: sudo su
+path: /usr/bin/sudo
 ```
 
-</div>
+Normalized event
+
+```
+privilege_escalation_attempt
+```
 
 ---
 
-### 📋 Workflow Steps
+## 🔄 Event Extraction Engine
 
-| Step | Description |
-|------|-------------|
-| **1️⃣ Log Ingestion** | Security logs are received from authentication systems, endpoints, and network activity |
-| **2️⃣ Log Processing** | Logs are cleaned, normalized, and converted into structured format |
-| **3️⃣ Autonomous Investigation** | Gemini LLM analyzes logs and detects suspicious patterns |
-| **4️⃣ Knowledge Retrieval (RAG)** | System retrieves MITRE ATT&CK knowledge to validate threats |
-| **5️⃣ Timeline Reconstruction** | System reconstructs full attack sequence |
-| **6️⃣ Incident Report Generation** | System generates structured incident report |
-| **7️⃣ Human Analyst Review** | SOC analyst reviews and approves actions |
+Transforms logs into meaningful security events.
+
+Example mapping:
+
+| Raw Activity | Extracted Event |
+|------|------|
+| sudo command | Privilege Escalation |
+| execution from /tmp | Suspicious Execution |
+| outbound connection | Command & Control |
 
 ---
 
-## ⚙️ System Requirements
+## 🧠 Behavior Analysis Layer
 
-### 💻 Hardware
+Analyzes sequences of events to detect suspicious activity.
+
+Example sequence:
+
+```
+Login → Privilege Escalation → Suspicious Execution → External Connection
+```
+
+Optional models:
+
+- LSTM sequence detection
+- anomaly detection
+
+---
+
+## 📚 RAG Knowledge Base
+
+The system uses Retrieval-Augmented Generation to ground reasoning in cybersecurity knowledge.
+
+Components include:
+
+- MITRE ATT&CK dataset
+- vector embeddings
+- ChromaDB vector store
+- semantic retrieval
+
+---
+
+## 🤖 Gemini LLM Agent
+
+Gemini performs the investigation by:
+
+- analyzing event sequences
+- mapping events to MITRE techniques
+- reconstructing attack chains
+- generating explainable analysis
+
+---
+
+## 🔍 Investigation Engine
+
+Reconstructs attack progression.
+
+Example:
+
+```
+Initial Access
+→ Privilege Escalation
+→ Execution
+→ Command & Control
+```
+
+---
+
+## 📋 Incident Report Generator
+
+Generates structured output including:
+
+- attack stage
+- MITRE ATT&CK techniques
+- severity level
+- confidence score
+- remediation recommendations
+
+---
+
+## 🛡️ SOC Analyst Dashboard
+
+Human analysts can:
+
+- review AI investigations
+- validate attack detection
+- initiate incident response
+
+---
+
+# 🔄 System Workflow
+
+```
+Security Logs
+     ↓
+Log Ingestion
+     ↓
+Log Normalization
+     ↓
+Event Extraction
+     ↓
+Behavior Analysis
+     ↓
+RAG Knowledge Retrieval
+     ↓
+LLM Investigation
+     ↓
+Attack Timeline Reconstruction
+     ↓
+Incident Report Generation
+     ↓
+SOC Analyst Review
+```
+
+---
+
+# ⚙️ System Requirements
+
+## Hardware
 
 | Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| **CPU** | 4 cores | 8+ cores |
-| **RAM** | 8 GB | 16 GB |
-| **Storage** | 5 GB free | 10 GB+ free |
-| **Internet** | Required | High-speed connection |
+|------|------|------|
+| CPU | 4 cores | 8+ cores |
+| RAM | 8 GB | 16 GB |
+| Storage | 5 GB | 10 GB |
 
 ---
 
-### 🛠️ Software
+## Software
 
-<table>
-<tr>
-<td>
+Required tools:
 
-**Required Software:**
-- 🐍 Python 3.10+
-- 📦 pip
-- 🔧 Git
-- 🌐 Virtual environment (recommended)
+- Python 3.10+
+- Git
+- pip
+- virtual environment
 
-</td>
-<td>
+Check version:
 
-**Check Python Version:**
-```bash
+```
 python --version
 ```
 
-</td>
-</tr>
-</table>
-
 ---
 
-## 🚀 Installation Guide
+# 🚀 Installation
 
-### 1️⃣ Clone the Repository
+### Clone repository
 
-```bash
+```
 git clone https://github.com/akash4426/LLM_Powered_SOC_Analyst.git
 cd LLM_Powered_SOC_Analyst
 ```
 
 ---
 
-### 2️⃣ Create Virtual Environment
+### Create virtual environment
 
-<details>
-<summary><b>🪟 Windows</b></summary>
+Linux / macOS
 
-```bash
-python -m venv venv
-venv\Scripts\activate
 ```
-
-</details>
-
-<details>
-<summary><b>🐧 Linux / macOS</b></summary>
-
-```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-</details>
+Windows
+
+```
+python -m venv venv
+venv\Scripts\activate
+```
 
 ---
 
-### 3️⃣ Install Dependencies
+### Install dependencies
 
-```bash
+```
 pip install -r requirements.txt
 ```
 
-## 🤝 Contributing
+---
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Configure environment variables
+
+Create `.env`
+
+```
+GEMINI_API_KEY=your_api_key_here
+```
 
 ---
 
-## 📧 Contact
+### Run the API server
 
-**Author:** Akash  
-**GitHub:** [@akash4426](https://github.com/akash4426)
+```
+uvicorn backend.main:app --reload
+```
+
+Open browser
+
+```
+http://127.0.0.1:8000/docs
+```
 
 ---
 
-<div align="center">
+# 📊 Example Investigation
 
-### ⭐ If you find this project useful, please consider giving it a star!
+Input logs
 
-**Made with ❤️ by Akash**
+```
+User login from 10.0.0.5
+sudo command executed
+binary executed from /tmp
+outbound connection to external IP
+```
 
-</div>
+Generated investigation
+
+```
+Attack Chain:
+Initial Access → Privilege Escalation → Execution → Command & Control
+
+MITRE Techniques:
+T1068, T1059, T1071
+
+Severity: High
+Confidence: 0.92
+
+Recommended Actions:
+- isolate host
+- rotate credentials
+- investigate lateral movement
+```
+
+---
+
+# 📚 Technologies Used
+
+- Python
+- FastAPI
+- Gemini LLM
+- LangChain
+- ChromaDB
+- Sentence Transformers
+- MITRE ATT&CK Dataset
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome.
+
+1. Fork the repository  
+2. Create feature branch  
+3. Submit pull request  
+
+---
+
+# 📧 Contact
+
+Author: **Akash**
+
+GitHub:  
+https://github.com/akash4426
+
+---
+
+# ⭐ Support
+
+If you found this project useful, consider giving it a **star ⭐**
+
+```
+AI + Cybersecurity + LLM Reasoning
+```
+
+Made with ❤️ by Akash
