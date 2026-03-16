@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOC Analyst — LLM Powered Investigation</title>
+  <meta name="description"
+    content="AI-powered Security Operations Center analyst. Submit security logs for autonomous investigation using Gemini LLM and MITRE ATT&CK knowledge." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- Background grid -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-title">SOC Analyst</span>
+          <span class="logo-sub">LLM · RAG · MITRE ATT&amp;CK</span>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-live" id="status-badge">
+          <span class="pulse-dot"></span>API Offline
+        </span>
+        <span class="badge badge-model">Gemini 2.5 Flash</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- LEFT: Input Panel -->
+    <section class="panel panel-input">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="panel-icon">
+            <path
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Log Input
+        </div>
+        <span class="panel-tag">Security Events</span>
+      </div>
+
+      <!-- Sample presets -->
+      <div class="presets-section">
+        <p class="presets-label">Sample Scenarios</p>
+        <div class="presets-row">
+          <button class="preset-btn" id="preset-bruteforce" onclick="loadPreset('bruteforce')">
+            🔐 Brute Force
+          </button>
+          <button class="preset-btn" id="preset-lateral" onclick="loadPreset('lateral')">
+            🔀 Lateral Movement
+          </button>
+          <button class="preset-btn" id="preset-exfil" onclick="loadPreset('exfil')">
+            📤 Data Exfiltration
+          </button>
+          <button class="preset-btn" id="preset-ransomware" onclick="loadPreset('ransomware')">
+            💀 Ransomware
+          </button>
+        </div>
+      </div>
+
+      <!-- Textarea -->
+      <div class="textarea-wrapper">
+        <label class="textarea-label" for="log-input">Paste Security Logs</label>
+        <textarea id="log-input" class="log-textarea"
+          placeholder="Paste raw security logs here…&#10;&#10;e.g.&#10;2024-01-15 03:22:11 Failed login for admin from 185.220.101.5&#10;2024-01-15 03:22:14 Failed login for root from 185.220.101.5&#10;..."
+          spellcheck="false"></textarea>
+        <div class="textarea-footer">
+          <span class="char-count" id="char-count">0 characters</span>
+          <button class="clear-btn" onclick="clearLogs()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Investigate button -->
+      <button class="investigate-btn" id="investigate-btn" onclick="investigate()">
+        <span class="btn-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+        </span>
+        <span class="btn-text">Investigate</span>
+        <div class="btn-shimmer"></div>
+      </button>
+
+      <!-- Info cards -->
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-icon">🤖</div>
+          <div class="info-detail">
+            <span class="info-label">Engine</span>
+            <span class="info-value">Gemini LLM</span>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">📚</div>
+          <div class="info-detail">
+            <span class="info-label">Knowledge</span>
+            <span class="info-value">MITRE ATT&amp;CK</span>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">🗄️</div>
+          <div class="info-detail">
+            <span class="info-label">Vector DB</span>
+            <span class="info-value">ChromaDB</span>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">⚡</div>
+          <div class="info-detail">
+            <span class="info-label">API</span>
+            <span class="info-value">FastAPI</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Report Panel -->
+    <section class="panel panel-report" id="report-panel">
+
+      <!-- Empty State -->
+      <div class="empty-state" id="empty-state">
+        <div class="radar-ring"></div>
+        <div class="radar-ring ring2"></div>
+        <div class="radar-ring ring3"></div>
+        <div class="radar-sweep"></div>
+        <div class="empty-icon">🛡️</div>
+        <h3 class="empty-title">Awaiting Investigation</h3>
+        <p class="empty-desc">Submit security logs on the left to run an autonomous AI-powered threat analysis against
+          the MITRE ATT&amp;CK framework.</p>
+      </div>
+
+      <!-- Loading State -->
+      <div class="loading-state hidden" id="loading-state">
+        <div class="scan-lines"></div>
+        <div class="loading-icon">
+          <div class="spinner-outer"></div>
+          <div class="spinner-inner"></div>
+          <div class="spinner-dot"></div>
+        </div>
+        <p class="loading-title">Investigating…</p>
+        <div class="loading-steps" id="loading-steps">
+          <div class="loading-step active" id="step-parse">
+            <span class="step-dot"></span>Parsing log events
+          </div>
+          <div class="loading-step" id="step-rag">
+            <span class="step-dot"></span>Retrieving MITRE ATT&amp;CK context
+          </div>
+          <div class="loading-step" id="step-llm">
+            <span class="step-dot"></span>Running LLM analysis
+          </div>
+          <div class="loading-step" id="step-report">
+            <span class="step-dot"></span>Generating incident report
+          </div>
+        </div>
+        <p class="loading-elapsed-hint">LLM analysis typically takes 20–60 seconds</p>
+        <p class="loading-elapsed-count" id="loading-elapsed">0s elapsed…</p>
+      </div>
+
+      <!-- Error State -->
+      <div class="error-state hidden" id="error-state">
+        <div class="error-icon">⚠️</div>
+        <h3 class="error-title">Investigation Failed</h3>
+        <p class="error-msg" id="error-msg">Could not reach the backend API. Make sure the server is running.</p>
+        <button class="retry-btn" onclick="investigate()">Retry</button>
+      </div>
+
+      <!-- Report Content -->
+      <div class="report-content hidden" id="report-content">
+        <div class="report-header">
+          <div class="report-title-row">
+            <h2 class="report-title">🔍 Incident Report</h2>
+            <div class="report-meta">
+              <span class="report-time" id="report-time"></span>
+              <button class="copy-btn" id="copy-btn" onclick="copyReport()" title="Copy report">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                </svg>
+                Copy
+              </button>
+            </div>
+          </div>
+          <!-- Severity Banner -->
+          <div class="severity-banner" id="severity-banner">
+            <div class="severity-left">
+              <span class="severity-label">Severity</span>
+              <span class="severity-value" id="severity-value">—</span>
+            </div>
+            <div class="severity-right">
+              <span class="severity-label">Confidence</span>
+              <span class="confidence-value" id="confidence-value">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Report Cards -->
+        <div class="report-cards">
+
+          <div class="report-card card-attack">
+            <div class="card-header">
+              <span class="card-icon">🎯</span>
+              <span class="card-label">Attack Stage</span>
+            </div>
+            <div class="card-body" id="attack-stage">—</div>
+          </div>
+
+          <div class="report-card card-mitre">
+            <div class="card-header">
+              <span class="card-icon">🗺️</span>
+              <span class="card-label">MITRE Technique</span>
+            </div>
+            <div class="card-body" id="mitre-technique">—</div>
+          </div>
+
+          <div class="report-card card-explanation wide">
+            <div class="card-header">
+              <span class="card-icon">💡</span>
+              <span class="card-label">Explanation</span>
+            </div>
+            <div class="card-body" id="explanation">—</div>
+          </div>
+
+          <div class="report-card card-actions wide">
+            <div class="card-header">
+              <span class="card-icon">🚀</span>
+              <span class="card-label">Recommended Actions</span>
+            </div>
+            <div class="card-body" id="recommended-actions">—</div>
+          </div>
+
+        </div>
+
+        <!-- Raw Report Toggle -->
+        <details class="raw-report">
+          <summary class="raw-summary">View Raw LLM Response</summary>
+          <pre class="raw-content" id="raw-content"></pre>
+        </details>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

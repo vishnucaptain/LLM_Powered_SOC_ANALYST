@@ -1,13 +1,14 @@
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import errors as genai_errors
+from fastapi import HTTPException
 from dotenv import load_dotenv
 from backend.rag_engine import retrieve_context
 
 load_dotenv()
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-model = genai.GenerativeModel("gemini-2.5-flash")
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+MODEL = "gemini-2.5-flash"
 
 
 def investigate_logs(log_text: str):
@@ -38,6 +39,22 @@ Return a structured report containing:
 highlight them as bullet points and keep the explanation under 10 lines and make it brief.
 """
 
-    response = model.generate_content(prompt)
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=prompt,
+        )
+        return response.text
 
-    return response.text
+    except genai_errors.ClientError as e:
+        status = getattr(e, 'status_code', None) or 500
+        msg = str(e)
+        if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+            raise HTTPException(
+                status_code=429,
+                detail="Gemini API quota exceeded. Please wait a minute and try again, or check your API key billing at https://ai.dev/rate-limit"
+            )
+        raise HTTPException(status_code=status, detail=f"Gemini API error: {msg}")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM investigation failed: {str(e)}")
