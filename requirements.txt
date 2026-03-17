@@ -1,42 +1,51 @@
-# FastAPI Backend
-fastapi==0.110.0
-uvicorn==0.29.0
+# ─────────────────────────────────────────────────────────────────
+#  LLM-Powered SOC Analyst — Python Requirements
+# ─────────────────────────────────────────────────────────────────
 
-# Gemini LLM
-google-generativeai==0.5.4
+# ── FastAPI Backend ───────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn==0.34.0
 
-# RAG Framework
-langchain==0.2.1
-langchain-community==0.2.1
-langchain-core==0.2.1
+# ── Google Gemini LLM ─────────────────────────────────────────────
+# New google-genai SDK (used in llm_agent.py)
+google-genai==1.9.0
 
-# Vector Database
-chromadb==0.5.0
+# ── RAG Framework (LangChain) ─────────────────────────────────────
+langchain==0.3.21
+langchain-community==0.3.20
+langchain-core==0.3.48
+langchain-huggingface==0.1.2
 
-# Embeddings
-sentence-transformers==2.7.0
+# ── Vector Database ───────────────────────────────────────────────
+chromadb==0.6.3
 
-# Environment Variables
-python-dotenv==1.0.1
+# ── Sentence Embeddings ───────────────────────────────────────────
+sentence-transformers==3.4.1
 
-# Data Processing
+# ── Environment Variables ─────────────────────────────────────────
+python-dotenv==1.1.0
+
+# ── Machine Learning — LSTM ───────────────────────────────────────
+torch==2.6.0
+torchvision==0.21.0
+
+# ── Graph Analysis ────────────────────────────────────────────────
+networkx==3.4.2
+
+# ── Data Processing ───────────────────────────────────────────────
 numpy==1.26.4
-pandas==2.2.2
+pandas==2.2.3
+scikit-learn==1.6.1
 
-# Validation and Models
-pydantic==2.7.1
+# ── Validation and Models ─────────────────────────────────────────
+pydantic==2.11.1
 
-# Tokenization
-tiktoken==0.7.0
+# ── HTTP Requests ─────────────────────────────────────────────────
+requests==2.32.3
 
-# HTTP Requests
-requests==2.31.0
+# ── JSON/utility ─────────────────────────────────────────────────
+orjson==3.10.16
+rich==13.9.4
 
-# JSON and parsing
-orjson==3.10.3
-
-# Logging and utilities
-rich==13.7.1
-
-# Optional but recommended
-scikit-learn==1.5.0
+# ── Visualization (for training curves — optional) ───────────────
+matplotlib==3.10.0

