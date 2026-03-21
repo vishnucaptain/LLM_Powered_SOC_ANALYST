@@ -151,8 +151,182 @@ function clearInput() {
     document.getElementById(`s-${activeScenario}`)?.classList.remove('active');
     activeScenario = null;
   }
+  // Clear filename display
+  const fn = document.getElementById('t-filename');
+  if (fn) fn.textContent = '';
   feedEntry('Input cleared', 'feed-sys');
 }
+
+/* ─── File Upload (button) ───────────────────────────────────── */
+function handleFileUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  loadFileContent(file);
+  // Reset input so same file can be re-selected
+  event.target.value = '';
+}
+
+function loadFileContent(file) {
+  const MAX_BYTES = 512_000; // 512 KB sanity cap
+  if (file.size > MAX_BYTES) {
+    feedEntry(`File too large (${(file.size / 1024).toFixed(0)} KB) — showing first 512 KB`, 'feed-warn');
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    let text = e.target.result;
+    const name = file.name.toLowerCase();
+
+    if (name.endsWith('.csv')) {
+      // Convert CSV to readable log text
+      text = parseCSV(text);
+      feedEntry(`CSV parsed → ${text.split('\n').length} log lines`, 'feed-ok');
+    } else {
+      feedEntry(`Loaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'feed-ok');
+    }
+
+    setFileInTerminal(text, file.name);
+  };
+
+  reader.onerror = () => {
+    feedEntry(`Failed to read file: ${file.name}`, 'feed-err');
+  };
+
+  // Read as text (limit to MAX_BYTES for large files)
+  reader.readAsText(file.slice(0, MAX_BYTES));
+}
+
+function setFileInTerminal(text, filename) {
+  // Deactivate any loaded scenario
+  if (activeScenario) {
+    document.getElementById(`s-${activeScenario}`)?.classList.remove('active');
+    activeScenario = null;
+  }
+
+  logInput.value = text;
+  updateCounts();
+
+  // Show filename in terminal chrome
+  const fn = document.getElementById('t-filename');
+  if (fn) fn.textContent = filename;
+}
+
+/* ─── CSV Parser ─────────────────────────────────────────────── */
+/*
+  Converts CSV rows into plain-text log lines the pipeline can parse.
+
+  Strategy:
+  1. Read the header row to understand column names
+  2. Look for columns that match common log field names
+     (timestamp, message, event, description, severity, source, etc.)
+  3. For each data row, build a one-line string: "col: value  col: value …"
+  This gives the normalizer / event extractor enough raw text to work with.
+*/
+function parseCSV(csvText) {
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return csvText; // Not enough rows
+
+  // Parse a single CSV row respecting quoted fields
+  function parseRow(line) {
+    const fields = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    fields.push(cur.trim());
+    return fields;
+  }
+
+  const headers = parseRow(lines[0]).map(h => h.replace(/^"|"$/g, '').toLowerCase());
+
+  // High-value columns to include (pattern matching)
+  const IMPORTANT = [
+    /time|date|ts/,
+    /message|msg|description|detail|event/,
+    /source|src|origin|host|hostname|computer/,
+    /ip|address|addr|remote/,
+    /user|account|principal|logon/,
+    /action|activity|operation/,
+    /severity|level|priority/,
+    /process|command|cmdline|executable/,
+  ];
+
+  // Pick column indices that match at least one important pattern
+  const keepIdx = headers.reduce((acc, h, i) => {
+    if (IMPORTANT.some(rx => rx.test(h))) acc.push(i);
+    return acc;
+  }, []);
+
+  // If no columns matched, just include all columns
+  const idxList = keepIdx.length > 0 ? keepIdx : headers.map((_, i) => i);
+
+  const outputLines = lines.slice(1).map(line => {
+    const row = parseRow(line);
+    return idxList
+      .map(i => {
+        const val = (row[i] || '').replace(/^"|"$/g, '').trim();
+        return val ? `${headers[i]}: ${val}` : null;
+      })
+      .filter(Boolean)
+      .join('  ');
+  }).filter(l => l.length > 0);
+
+  return outputLines.join('\n');
+}
+
+/* ─── Drag and Drop ─────────────────────────────────────────── */
+(function initDragDrop() {
+  const dropZone = document.getElementById('drop-zone');
+  // Use the left column as the drag target area
+  const leftCol  = document.querySelector('.col-left');
+  if (!leftCol || !dropZone) return;
+
+  let dragCounter = 0; // track nested dragenter/dragleave pairs
+
+  leftCol.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    dropZone.classList.add('active');
+    logInput.classList.add('drag-over');
+  });
+
+  leftCol.addEventListener('dragleave', (e) => {
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      dropZone.classList.remove('active');
+      logInput.classList.remove('drag-over');
+    }
+  });
+
+  leftCol.addEventListener('dragover', (e) => {
+    e.preventDefault(); // required to allow drop
+  });
+
+  leftCol.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropZone.classList.remove('active');
+    logInput.classList.remove('drag-over');
+
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+
+    const allowed = ['.log', '.txt', '.csv', '.json'];
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+    if (!allowed.includes(ext)) {
+      feedEntry(`Unsupported file type: ${ext}. Use .log .txt .csv .json`, 'feed-warn');
+      return;
+    }
+
+    loadFileContent(file);
+  });
+})();
 
 /* ─── UI state switches ──────────────────────────────────────── */
 const STATES = ['empty-state', 'loading-state', 'error-state', 'report'];
