@@ -33,6 +33,10 @@
         <span class="status-dot" id="status-dot"></span>
         <span id="status-text">API OFFLINE</span>
       </div>
+      <a href="rag_test.html"
+        style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);text-decoration:none;padding:3px 9px;border:1px solid var(--border);border-radius:4px;transition:all 0.2s;"
+        onmouseover="this.style.color='var(--cyan)';this.style.borderColor='var(--cyan)'"
+        onmouseout="this.style.color='var(--text-2)';this.style.borderColor='var(--border)'">🗄 RAG TEST</a>
       <div class="model-chip">GEMINI 2.5 FLASH</div>
       <div class="clock" id="clock"></div>
     </div>
@@ -80,13 +84,14 @@
           <div class="module-header-actions">
             <label class="upload-btn" for="file-input" title="Upload .log .txt .csv">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
               UPLOAD FILE
             </label>
-            <input type="file" id="file-input" accept=".log,.txt,.csv,.json" style="display:none" onchange="handleFileUpload(event)" />
+            <input type="file" id="file-input" accept=".log,.txt,.csv,.json" style="display:none"
+              onchange="handleFileUpload(event)" />
             <button class="link-btn" onclick="clearInput()" id="clear-btn">CLEAR</button>
           </div>
         </div>
@@ -94,9 +99,9 @@
         <div class="drop-zone" id="drop-zone">
           <div class="drop-inner">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             <span>Drop file here</span>
             <small>.log · .txt · .csv · .json</small>
@@ -170,7 +175,7 @@
       <!-- Empty state -->
       <div class="empty-state" id="empty-state">
         <div class="empty-ascii">
-<pre class="ascii-art">
+          <pre class="ascii-art">
   ╔══════════════════════════╗
   ║  SYSTEM  READY           ║
   ║  AWAITING  LOG  INPUT    ║
@@ -182,7 +187,8 @@
   ╚══════════════════════════╝
 </pre>
         </div>
-        <p class="empty-hint">Select a scenario, paste logs, or upload a <strong>.log</strong> / <strong>.txt</strong> / <strong>.csv</strong> file using the button in the left panel.</p>
+        <p class="empty-hint">Select a scenario, paste logs, or upload a <strong>.log</strong> / <strong>.txt</strong> /
+          <strong>.csv</strong> file using the button in the left panel.</p>
       </div>
 
       <!-- Loading state -->

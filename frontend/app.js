@@ -6,7 +6,7 @@
 ═════════════════════════════════════════════════════════════ */
 
 const API = 'http://localhost:8000';
-const TIMEOUT_MS = 150_000; // 2.5 minutes
+const TIMEOUT_MS = 300_000; // 5 minutes
 
 /* ─── Scenario presets ──────────────────────────────────────── */
 const SCENARIOS = {
@@ -454,7 +454,7 @@ async function investigate() {
     clearTimeout(timeout);
     let msg;
     if (err.name === 'AbortError') {
-      msg = 'Request timed out after 2.5 minutes. The LLM may be overloaded — please retry.';
+      msg = 'Request timed out after 5 minutes. The local LLM might be generating slowly on your hardware — please retry.';
       feedEntry('Request timed out', 'feed-err');
     } else if (/fetch|failed to fetch/i.test(err.message)) {
       msg = 'Cannot reach backend API. Make sure uvicorn is running on port 8000.';

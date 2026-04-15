@@ -6,9 +6,10 @@
 fastapi==0.115.12
 uvicorn==0.34.0
 
-# ── Google Gemini LLM ─────────────────────────────────────────────
-# New google-genai SDK (used in llm_agent.py)
-google-genai==1.9.0
+# ── Local LLM — Phi-3.5-mini (Hugging Face) ──────────────────────
+# Used by backend/llm_agent.py for SOC investigation reports
+transformers>=4.43.0
+accelerate>=0.30.0
 
 # ── RAG Framework (LangChain) ─────────────────────────────────────
 langchain==0.3.21

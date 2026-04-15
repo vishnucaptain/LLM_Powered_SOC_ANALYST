@@ -11,15 +11,17 @@ Full pipeline:
   4. Score with LSTM anomaly detector (with heuristic fallback)
   5. Enrich with threat intelligence
   6. Retrieve MITRE ATT&CK RAG context  ← using get_mitre_query()
-  7. LLM investigation (Gemini) — receives pre-fetched RAG context
+  7. LLM investigation (Phi-3.5 local) — receives pre-fetched RAG context
   8. Reconstruct attack graph (NetworkX)
   9. Generate structured incident report  ← includes rag_context
   10. Return full JSON
 """
 
-from fastapi import FastAPI, Request
+import concurrent.futures
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from typing import Optional as _Optional
 
 from backend.models import LogRequest, InvestigateResponse
 from backend.log_normalizer import normalize_logs
@@ -80,7 +82,7 @@ def health_check():
 
 
 # ── Main investigation endpoint ───────────────────────────────────────────────
-@app.post("/investigate")
+@app.post("/investigate", response_model=InvestigateResponse)
 def investigate(request: LogRequest):
     """
     Full SOC investigation pipeline.
@@ -128,19 +130,58 @@ def investigate(request: LogRequest):
         s.strip() for s in rag_context.split("\n\n") if s.strip()
     ]
 
-    # ── Step 7: LLM Investigation (receives pre-fetched RAG context) ──────
-    llm_output = investigate_logs(
-        log_text=raw_logs,
-        event_sequence=event_sequence_types,
-        anomaly_score=anomaly_score,
-        threat_intel_summary=ti_summary,
-        attack_graph_summary="",         # filled after graph step
-        rag_context=rag_context,         # <— RAG context passed explicitly
-    )
-
-    # ── Step 8: Attack Graph Reconstruction ──────────────────────────────
+    # ── Step 7: Attack Graph Reconstruction ──────────────────────────────
     graph = build_attack_graph(events)
     graph_summary = attack_graph_summary(graph)
+
+    # ── Step 8: LLM Investigation (receives pre-fetched RAG context) ──────
+    llm_warning = ""
+    try:
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(
+            investigate_logs,
+            log_text=raw_logs,
+            event_sequence=event_sequence_types,
+            anomaly_score=anomaly_score,
+            threat_intel_summary=ti_summary,
+            attack_graph_summary=graph_summary,
+            rag_context=rag_context,         # <— RAG context passed explicitly
+        )
+        # Timeout after 10 seconds for graceful, fast UI fallback
+        llm_output = future.result(timeout=10.0)
+        executor.shutdown(wait=False)
+    except concurrent.futures.TimeoutError:
+        llm_warning = "Phi-3 LLM generation timed out. Hardware limits may prevent the analysis from finishing quickly."
+        llm_output = (
+            "attack_stage: Unknown\n\n"
+            "mitre_technique: Unknown\n\n"
+            "severity: MEDIUM\n\n"
+            "confidence: 50%\n\n"
+            "explanation:\n"
+            "- Phi-3 local LLM generation timed out.\n"
+            "- The model successfully loaded but text generation was too slow on the current hardware.\n"
+            "\n"
+            "recommended_actions:\n"
+            "- Upgrade to a machine with a dedicated GPU (e.g., Apple Silicon M2/M3 Max, Nvidia GPU) for faster local inference."
+        )
+    except Exception as e:  # catches RuntimeError, ImportError, OSError, CUDA errors
+        llm_warning = f"Phi-3 LLM unavailable: {e}"
+        llm_output = (
+            "attack_stage: Unknown\n\n"
+            "mitre_technique: Unknown\n\n"
+            "severity: MEDIUM\n\n"
+            "confidence: 50%\n\n"
+            "explanation:\n"
+            "- Phi-3 local LLM could not run (model may still be downloading or requires more RAM/VRAM).\n"
+            "- Core detections (events, sessions, anomaly score, threat intel, RAG, attack graph) were still processed.\n"
+            "- Review technical indicators and enrichment data in this report for triage.\n"
+            "\n"
+            "recommended_actions:\n"
+            "- Ensure transformers and accelerate are installed: pip install transformers accelerate.\n"
+            "- Wait for Phi-3.5 model to finish downloading (~7 GB on first run).\n"
+            "- Ensure sufficient RAM (>=8 GB) or VRAM for model inference.\n"
+            "- Restart the backend service and re-run investigation."
+        )
 
     # ── Step 9: Incident Report Generation ───────────────────────────────
     report = generate_report(
@@ -152,7 +193,11 @@ def investigate(request: LogRequest):
         raw_logs=raw_logs,
         rag_snippets=rag_snippets,       # <— RAG passages now in report
         mitre_query=mitre_query,         # <— show what query was used
+        events=events,                   # ← for MITRE technique fallback
     )
+
+    if llm_warning:
+        report["llm_warning"] = llm_warning
 
     # ── Step 10: Add legacy field for frontend backward-compat ────────────
     report["investigation"] = llm_output
@@ -162,19 +207,30 @@ def investigate(request: LogRequest):
 
 # ── Auxiliary endpoints ───────────────────────────────────────────────────────
 
+class _ParseRequest(BaseModel):
+    logs: str = Field(..., min_length=1, description="Raw log text or query string")
+    k: _Optional[int] = Field(default=3, ge=1, le=20, description="Max RAG snippets to return")
+
+
 @app.post("/parse")
-def parse_only(request: LogRequest):
+def parse_only(request: _ParseRequest):
     """
     Parse and normalize logs without running LLM investigation.
     Useful for testing the extraction pipeline.
     Also runs RAG retrieval so you can inspect what MITRE context would be used.
+    Accepts optional `k` field (1-20) to control number of RAG snippets returned.
     """
+    k = max(1, min(int(request.k or 3), 20))
     normalized = normalize_logs(request.logs)
     events = extract_events(normalized)
     sessions = build_sessions(events)
     anomaly_score = score_sequence(events_to_sequence(events))
     ti_report = enrich_events(events)
     graph = build_attack_graph(events)
+    mitre_query = get_mitre_query(events)
+    rag_context = retrieve_context(mitre_query, k=k)
+    rag_snippets = [s.strip() for s in rag_context.split("\n\n") if s.strip()]
+    rag_source = "vector_db" if rag_snippets else "none"
 
     return {
         "normalized_count": len(normalized),
@@ -183,4 +239,34 @@ def parse_only(request: LogRequest):
         "anomaly_score": anomaly_score,
         "threat_intel": ti_report.to_dict(),
         "attack_graph": graph,
+        "rag_query": mitre_query,
+        "rag_source": rag_source,
+        "rag_snippets": rag_snippets,
+        "rag_context": rag_context,
+    }
+
+
+class _RagTestRequest(BaseModel):
+    query: str = Field(..., min_length=1, description="Direct semantic search query against the MITRE ATT&CK vector DB")
+    k: _Optional[int] = Field(default=3, ge=1, le=20, description="Number of results to retrieve")
+
+
+@app.post("/rag-test")
+def rag_test(request: _RagTestRequest):
+    """
+    Direct RAG query endpoint — bypass log parsing and query the vector DB directly.
+    Useful for testing what the MITRE ATT&CK ChromaDB retrieves for a given query.
+    """
+    k = max(1, min(int(request.k or 3), 20))
+    rag_context = retrieve_context(request.query, k=k)
+    rag_snippets = [s.strip() for s in rag_context.split("\n\n") if s.strip()]
+    rag_source = "vector_db" if rag_snippets else "none"
+
+    return {
+        "query": request.query,
+        "k": k,
+        "rag_source": rag_source,
+        "rag_snippets": rag_snippets,
+        "rag_context": rag_context,
+        "snippet_count": len(rag_snippets),
     }

@@ -33,16 +33,16 @@ class ThreatIntelSummary(BaseModel):
     total_indicators: int
     max_risk_score: int
     overall_risk: str
-    indicators: List[ThreatIntelIndicator] = []
+    indicators: List[ThreatIntelIndicator] = Field(default_factory=list)
 
 
 class AttackGraphSummary(BaseModel):
     node_count: int
     edge_count: int
-    attack_path: List[str] = []
-    stages: List[str] = []
-    nodes: List[Dict[str, Any]] = []
-    edges: List[Dict[str, Any]] = []
+    attack_path: List[str] = Field(default_factory=list)
+    stages: List[str] = Field(default_factory=list)
+    nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class InvestigateResponse(BaseModel):
@@ -60,24 +60,31 @@ class InvestigateResponse(BaseModel):
     # Attack characterization
     attack_stage: str
     kill_chain_stage: str
-    kill_chain_path: List[str] = []
-    mitre_techniques: List[str] = []
+    kill_chain_path: List[str] = Field(default_factory=list)
+    mitre_techniques: List[str] = Field(default_factory=list)
 
     # Event summary
-    event_types: List[str] = []
+    event_types: List[str] = Field(default_factory=list)
     session_count: int
     events_analyzed: int
 
     # Enrichment data
-    threat_intel: Dict[str, Any] = {}
-    attack_graph: Dict[str, Any] = {}
+    threat_intel: Dict[str, Any] = Field(default_factory=dict)
+    attack_graph: Dict[str, Any] = Field(default_factory=dict)
+
+    # RAG retrieval results (MITRE ATT&CK knowledge base)
+    rag_query: str = ""
+    rag_snippets: List[str] = Field(default_factory=list)
 
     # LLM outputs
     llm_explanation: str
-    recommended_response: List[str] = []
+    recommended_response: List[str] = Field(default_factory=list)
 
     # Original input (truncated)
     raw_log_sample: str = ""
 
     # Legacy field for backwards-compat with existing frontend
     investigation: Optional[str] = None
+
+    # Optional warning when fallback logic is used (e.g. LLM unavailable)
+    llm_warning: Optional[str] = None

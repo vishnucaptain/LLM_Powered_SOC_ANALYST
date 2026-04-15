@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Vector DB Tester — SOC Analyst</title>
+  <meta name="description" content="Test the MITRE ATT&CK RAG vector database retrieval system for the LLM-Powered SOC Analyst." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ══════════════════════════════════════════════════════════
+       RAG TEST PAGE — Design tokens
+    ══════════════════════════════════════════════════════════ */
+    :root {
+      --bg:       #0b0e14;
+      --bg2:      #111620;
+      --bg3:      #161d2a;
+      --border:   #1e2d45;
+      --border2:  #243350;
+      --text:     #cdd9f0;
+      --text-2:   #637a9f;
+      --text-3:   #3e5070;
+      --green:    #2dba75;
+      --blue:     #4a90d9;
+      --amber:    #e89a3c;
+      --red:      #e05a5a;
+      --purple:   #9b7ff4;
+      --cyan:     #3ec9d6;
+      --mono:     'IBM Plex Mono', monospace;
+      --sans:     'IBM Plex Sans', sans-serif;
+      --radius:   6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+    }
+
+    /* ── Scrollbar ────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    /* ── Top bar ─────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 42px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 12px; font-weight: 600;
+      color: var(--cyan); letter-spacing: 0.06em;
+    }
+    .topbar-logo svg { color: var(--cyan); }
+    .topbar-sep { color: var(--border2); }
+    .topbar-subtitle { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+    .status-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 999px;
+      border: 1px solid var(--border2);
+      font-family: var(--mono); font-size: 10px; font-weight: 600;
+      color: var(--text-2); background: var(--bg3);
+      transition: all 0.3s;
+    }
+    .status-chip.online { border-color: var(--green); color: var(--green); }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-3);
+      transition: background 0.3s;
+    }
+    .status-chip.online .status-dot {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .back-link {
+      font-family: var(--mono); font-size: 10px; color: var(--text-2);
+      text-decoration: none; padding: 3px 8px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      transition: all 0.2s;
+    }
+    .back-link:hover { color: var(--text); border-color: var(--border2); }
+
+    /* ── Main layout ─────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      grid-template-rows: calc(100vh - 42px);
+      overflow: hidden;
+    }
+
+    /* ── Panels ──────────────────────────────────────────── */
+    .panel-left {
+      border-right: 1px solid var(--border);
+      background: var(--bg2);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-right {
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* ── Section headers ─────────────────────────────────── */
+    .sec-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+      flex-shrink: 0;
+    }
+    .sec-label {
+      font-family: var(--mono); font-size: 9px; font-weight: 600;
+      letter-spacing: 0.1em; color: var(--text-2);
+    }
+    .sec-badge {
+      font-family: var(--mono); font-size: 9px; font-weight: 600;
+      letter-spacing: 0.08em; color: var(--cyan);
+      padding: 2px 7px; border: 1px solid rgba(62,201,214,0.25);
+      border-radius: var(--radius); background: rgba(62,201,214,0.06);
+    }
+
+    /* ── Preset queries ──────────────────────────────────── */
+    .presets-scroll {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .presets-title {
+      font-family: var(--mono); font-size: 9px; color: var(--text-3);
+      letter-spacing: 0.08em; margin-bottom: 7px;
+    }
+    .preset-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .preset-chip {
+      font-family: var(--mono); font-size: 10px; cursor: pointer;
+      padding: 3px 9px; border-radius: var(--radius);
+      border: 1px solid var(--border); color: var(--text-2);
+      background: var(--bg); transition: all 0.15s;
+    }
+    .preset-chip:hover { border-color: var(--purple); color: var(--purple); background: rgba(155,127,244,0.06); }
+    .preset-chip.active { border-color: var(--purple); color: var(--purple); background: rgba(155,127,244,0.1); }
+
+    /* ── Query input area ────────────────────────────────── */
+    .query-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 12px; gap: 10px; }
+
+    .query-input-label {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; color: var(--text-3);
+    }
+
+    .query-textarea {
+      flex: 1;
+      resize: none;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      min-height: 80px;
+    }
+    .query-textarea:focus { border-color: var(--purple); }
+    .query-textarea.shake {
+      animation: shake 0.3s;
+      border-color: var(--red) !important;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25%       { transform: translateX(-4px); }
+      75%       { transform: translateX(4px); }
+    }
+
+    .k-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .k-label {
+      font-family: var(--mono); font-size: 10px; color: var(--text-2); flex-shrink: 0;
+    }
+    .k-select {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-family: var(--mono); font-size: 11px;
+      padding: 4px 8px; outline: none; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .k-select:focus { border-color: var(--purple); }
+
+    .mode-row {
+      display: flex; gap: 6px;
+    }
+    .mode-btn {
+      flex: 1; font-family: var(--mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.06em; cursor: pointer; padding: 5px;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      color: var(--text-2); background: var(--bg);
+      transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: var(--border2); color: var(--text); }
+    .mode-btn.mode-active { border-color: var(--cyan); color: var(--cyan); background: rgba(62,201,214,0.08); }
+
+    /* Run button */
+    .run-btn {
+      font-family: var(--mono); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.1em; cursor: pointer; padding: 10px;
+      border-radius: var(--radius); border: 1px solid var(--purple);
+      color: var(--bg); background: var(--purple);
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .run-btn:hover:not(:disabled) { background: #b09bf8; }
+    .run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Right panel ─────────────────────────────────────── */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      flex-shrink: 0;
+    }
+    .results-title {
+      font-family: var(--mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.12em; color: var(--text-2);
+    }
+    .results-meta { display: flex; gap: 12px; align-items: center; }
+    .meta-chip {
+      font-family: var(--mono); font-size: 10px; color: var(--text-3);
+      padding: 2px 8px; border: 1px solid var(--border);
+      border-radius: var(--radius); background: var(--bg3);
+    }
+    .meta-chip.ok { border-color: rgba(45,186,117,0.35); color: var(--green); }
+    .meta-chip.warn { border-color: rgba(232,154,60,0.35); color: var(--amber); }
+
+    .results-scroll { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+    /* ── Empty / Loading ─────────────────────────────────── */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 16px; color: var(--text-3);
+    }
+    .empty-icon { font-size: 2.5rem; opacity: 0.4; }
+    .empty-text { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-align: center; line-height: 1.7; }
+
+    .loading-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 14px;
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--purple);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+    .loading-steps { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+    .l-step {
+      font-family: var(--mono); font-size: 10px; color: var(--text-3);
+      transition: color 0.3s;
+    }
+    .l-step.active { color: var(--purple); }
+    .l-step.done { color: var(--green); }
+
+    /* ── Query summary bar ───────────────────────────────── */
+    .query-summary {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .qs-label { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: 0.08em; }
+    .qs-value { font-family: var(--mono); font-size: 11px; color: var(--purple); word-break: break-all; line-height: 1.5; }
+    .qs-row { display: flex; gap: 16px; margin-top: 4px; }
+    .qs-stat { font-family: var(--mono); font-size: 10px; color: var(--text-2); }
+    .qs-stat span { color: var(--cyan); }
+
+    /* ── Section title ───────────────────────────────────── */
+    .result-section-title {
+      font-family: var(--mono); font-size: 9px; font-weight: 600;
+      letter-spacing: 0.12em; color: var(--text-3);
+      margin-bottom: 8px; text-transform: uppercase;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .result-section-title::after {
+      content: '';flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── RAG snippets ────────────────────────────────────── */
+    .snip-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+    .snip-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg2);
+      overflow: hidden;
+      transition: border-color 0.2s;
+      animation: fadeIn 0.3s ease both;
+    }
+    .snip-card:hover { border-color: var(--border2); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .snip-card:nth-child(1) { animation-delay: 0.05s; }
+    .snip-card:nth-child(2) { animation-delay: 0.1s; }
+    .snip-card:nth-child(3) { animation-delay: 0.15s; }
+    .snip-card:nth-child(4) { animation-delay: 0.2s; }
+    .snip-card:nth-child(5) { animation-delay: 0.25s; }
+
+    .snip-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .snip-num {
+      font-family: var(--mono); font-size: 10px; font-weight: 600;
+      color: var(--purple);
+    }
+    .snip-len {
+      font-family: var(--mono); font-size: 9px; color: var(--text-3);
+    }
+    .snip-body {
+      padding: 10px 14px;
+      font-family: var(--mono); font-size: 11px; line-height: 1.65;
+      color: var(--text); word-break: break-word; white-space: pre-wrap;
+    }
+
+    /* Expand / collapse */
+    .snip-more-btn {
+      display: block; width: 100%;
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em;
+      color: var(--text-3); background: none; border: none;
+      border-top: 1px solid var(--border); padding: 5px 0;
+      cursor: pointer; transition: color 0.15s;
+    }
+    .snip-more-btn:hover { color: var(--purple); }
+
+    /* ── Raw context block ───────────────────────────────── */
+    .raw-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .raw-sec-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 12px; background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+    }
+    .raw-sec-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; color: var(--text-2); }
+    .copy-raw-btn {
+      font-family: var(--mono); font-size: 9px; color: var(--text-3);
+      background: none; border: 1px solid var(--border); border-radius: 4px;
+      padding: 2px 7px; cursor: pointer; transition: all 0.15s;
+    }
+    .copy-raw-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+    .raw-pre {
+      padding: 12px 14px;
+      font-family: var(--mono); font-size: 10.5px; line-height: 1.6;
+      color: var(--text-2); white-space: pre-wrap; word-break: break-all;
+      max-height: 280px; overflow-y: auto;
+    }
+
+    /* ── Events table ────────────────────────────────────── */
+    .events-table {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; margin-bottom: 20px;
+    }
+    .ev-row {
+      display: grid; grid-template-columns: 30px 90px 1fr;
+      gap: 0; align-items: center;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .ev-row:last-child { border-bottom: none; }
+    .ev-row:hover { background: var(--bg3); }
+    .ev-cell {
+      padding: 6px 10px;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--text-2); overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .ev-cell.idx { color: var(--text-3); font-size: 9px; }
+    .ev-type-badge {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
+      background: rgba(155,127,244,0.12); color: var(--purple);
+      border: 1px solid rgba(155,127,244,0.2);
+    }
+
+    /* ── Error state ─────────────────────────────────────── */
+    .error-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 10px;
+    }
+    .err-code {
+      font-family: var(--mono); font-size: 2rem; color: var(--red); font-weight: 600;
+    }
+    .err-msg {
+      font-family: var(--mono); font-size: 11px; color: var(--text-2); text-align: center;
+      max-width: 380px; line-height: 1.6;
+    }
+    .err-retry {
+      margin-top: 6px; font-family: var(--mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.08em; cursor: pointer; padding: 7px 18px;
+      border-radius: var(--radius); border: 1px solid var(--red);
+      color: var(--red); background: none; transition: all 0.15s;
+    }
+    .err-retry:hover { background: rgba(224,90,90,0.08); }
+
+    /* no-results */
+    .no-results {
+      border: 1px dashed var(--border2); border-radius: var(--radius);
+      padding: 22px; text-align: center;
+      font-family: var(--mono); font-size: 11px; color: var(--text-3); line-height: 1.7;
+    }
+    .no-results strong { color: var(--amber); }
+
+    /* Source badge */
+    .source-badge {
+      display: inline-block; font-family: var(--mono); font-size: 9px; font-weight: 600;
+      letter-spacing: 0.08em; padding: 2px 8px; border-radius: 4px;
+    }
+    .source-vector_db { background: rgba(45,186,117,0.1); color: var(--green); border: 1px solid rgba(45,186,117,0.25); }
+    .source-sqlite    { background: rgba(232,154,60,0.1);  color: var(--amber); border: 1px solid rgba(232,154,60,0.25); }
+    .source-none      { background: rgba(224,90,90,0.1);   color: var(--red);   border: 1px solid rgba(224,90,90,0.25); }
+
+    /* Hidden utility */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Topbar ──────────────────────────────────────────────── -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/>
+          <path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+          <path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/>
+        </svg>
+        RAG_VECTOR_DB_TESTER
+      </div>
+      <span class="topbar-sep">|</span>
+      <span class="topbar-subtitle">MITRE ATT&amp;CK · ChromaDB · /parse endpoint</span>
+    </div>
+    <div class="topbar-right">
+      <a href="index.html" class="back-link">← SOC DASHBOARD</a>
+      <div class="status-chip" id="api-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">CHECKING…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Layout ─────────────────────────────────────────── -->
+  <div class="layout">
+
+    <!-- LEFT: Query Panel -->
+    <aside class="panel-left">
+
+      <div class="sec-header">
+        <span class="sec-label">QUERY INPUT</span>
+        <span class="sec-badge">ChromaDB FTS + Embeddings</span>
+      </div>
+
+      <!-- Preset queries -->
+      <div class="presets-scroll">
+        <div class="presets-title">QUICK PRESETS</div>
+        <div class="preset-chips" id="preset-chips">
+          <button class="preset-chip" onclick="loadPreset(this,'T1110 Brute Force credential stuffing')">T1110 Brute Force</button>
+          <button class="preset-chip" onclick="loadPreset(this,'T1059 Command Scripting Interpreter PowerShell')">T1059 PowerShell</button>
+          <button class="preset-chip" onclick="loadPreset(this,'T1021 Remote Services lateral movement')">T1021 Lateral Move</button>
+          <button class="preset-chip" onclick="loadPreset(this,'T1041 Exfiltration Over C2 Channel data theft')">T1041 Exfil</button>
+          <button class="preset-chip" onclick="loadPreset(this,'T1486 Data Encrypted for Impact ransomware')">T1486 Ransomware</button>
+          <button class="preset-chip" onclick="loadPreset(this,'T1055 Process Injection privilege escalation')">T1055 Injection</button>
+          <button class="preset-chip" onclick="loadPreset(this,'T1218 Signed Binary Proxy defense evasion lolbas')">T1218 Defense Evasion</button>
+          <button class="preset-chip" onclick="loadPreset(this,'T1078 Valid Accounts credential access')">T1078 Valid Accounts</button>
+          <button class="preset-chip" onclick="loadPreset(this,'mimikatz credential dumping LSASS')">Mimikatz / LSASS</button>
+          <button class="preset-chip" onclick="loadPreset(this,'network scanning reconnaissance discovery')">Recon / Discovery</button>
+        </div>
+      </div>
+
+      <!-- Query text + controls -->
+      <div class="query-wrap">
+        <div class="query-input-label">ENTER SEARCH QUERY / LOG TEXT</div>
+        <textarea
+          id="query-input"
+          class="query-textarea"
+          spellcheck="false"
+          placeholder="Type a MITRE technique ID, keyword, or paste raw log text.&#10;&#10;Examples:&#10;  T1110 brute force SSH&#10;  lateral movement PsExec&#10;  ransomware shadow copy deletion"
+        ></textarea>
+
+        <div class="k-row">
+          <span class="k-label">TOP-K RESULTS</span>
+          <select id="k-select" class="k-select">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="query-input-label" style="margin-bottom:6px">RETRIEVAL MODE</div>
+          <div class="mode-row">
+            <button class="mode-btn mode-active" id="mode-auto" onclick="setMode('auto')">AUTO</button>
+            <button class="mode-btn" id="mode-logs" onclick="setMode('logs')">LOG TEXT → RAG</button>
+            <button class="mode-btn" id="mode-direct" onclick="setMode('direct')">DIRECT QUERY</button>
+          </div>
+        </div>
+
+        <button class="run-btn" id="run-btn" onclick="runQuery()">
+          ⬡ &nbsp;RETRIEVE FROM VECTOR DB
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT: Results panel -->
+    <main class="panel-right">
+
+      <div class="results-header">
+        <span class="results-title">RETRIEVAL RESULTS</span>
+        <div class="results-meta" id="results-meta">
+          <span class="meta-chip" id="meta-source" style="display:none"></span>
+          <span class="meta-chip" id="meta-count"  style="display:none"></span>
+          <span class="meta-chip" id="meta-time"   style="display:none"></span>
+        </div>
+      </div>
+
+      <div class="results-scroll" id="results-scroll">
+
+        <!-- empty state -->
+        <div class="empty-state" id="state-empty">
+          <div class="empty-icon">🗄️</div>
+          <div class="empty-text">
+            MITRE ATT&amp;CK Vector DB ready<br/>
+            <span style="color:var(--purple);">ChromaDB · all-MiniLM-L6-v2 embeddings</span><br/><br/>
+            Select a preset or type a query<br/>
+            then click <strong style="color:var(--purple);">RETRIEVE FROM VECTOR DB</strong>
+          </div>
+        </div>
+
+        <!-- loading state -->
+        <div class="loading-state hidden" id="state-loading">
+          <div class="spinner"></div>
+          <div class="loading-text">Querying vector database…</div>
+          <div class="loading-steps">
+            <div class="l-step" id="ls-0">① Normalizing log input</div>
+            <div class="l-step" id="ls-1">② Extracting MITRE query</div>
+            <div class="l-step" id="ls-2">③ Embedding query (MiniLM)</div>
+            <div class="l-step" id="ls-3">④ Similarity search → ChromaDB</div>
+            <div class="l-step" id="ls-4">⑤ Returning top-k passages</div>
+          </div>
+        </div>
+
+        <!-- error state -->
+        <div class="error-state hidden" id="state-error">
+          <div class="err-code">ERR</div>
+          <div class="err-msg" id="err-msg">Could not reach API.</div>
+          <button class="err-retry" onclick="runQuery()">RETRY</button>
+        </div>
+
+        <!-- results -->
+        <div class="hidden" id="state-results">
+
+          <!-- Query summary -->
+          <div class="query-summary" id="qs-block">
+            <div class="qs-label">MITRE QUERY USED FOR RETRIEVAL</div>
+            <div class="qs-value" id="qs-text">—</div>
+            <div class="qs-row">
+              <div class="qs-stat">Source: <span id="qs-source">—</span></div>
+              <div class="qs-stat">Snippets: <span id="qs-count">—</span></div>
+              <div class="qs-stat">Events: <span id="qs-events">—</span></div>
+            </div>
+          </div>
+
+          <!-- RAG Snippets -->
+          <div class="result-section-title" id="snips-title">RAG PASSAGES RETRIEVED</div>
+          <div class="snip-list" id="snip-list"></div>
+
+          <!-- Detected events (collapsible) -->
+          <div id="events-section" class="hidden">
+            <div class="result-section-title">DETECTED SECURITY EVENTS</div>
+            <div class="events-table" id="events-table"></div>
+          </div>
+
+          <!-- Raw context -->
+          <div id="raw-section">
+            <div class="result-section-title">RAW CONTEXT STRING</div>
+            <div class="raw-section">
+              <div class="raw-sec-head">
+                <span class="raw-sec-label">rag_context (joined passages)</span>
+                <button class="copy-raw-btn" id="copy-raw-btn" onclick="copyRaw()">COPY</button>
+              </div>
+              <pre class="raw-pre" id="raw-pre">—</pre>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /* ══════════════════════════════════════════════════════
+       RAG TESTER — JavaScript
+    ══════════════════════════════════════════════════════ */
+    const API = 'http://localhost:8000';
+    let mode = 'auto';   // 'auto' | 'logs' | 'direct'
+    let lastRawCtx = '';
+    let animTimer = null;
+
+    /* ─── Mode control ─────────────────────────────────── */
+    function setMode(m) {
+      mode = m;
+      ['auto','logs','direct'].forEach(id => {
+        document.getElementById(`mode-${id}`)?.classList.toggle('mode-active', id === m);
+      });
+      const placeholder = {
+        auto:   'Type any keywords, MITRE ID, or paste raw log text — the backend auto-detects mode.\n\nExamples:\n  T1110 brute force SSH\n  Failed password for admin from 185.220.101.5\n  mimikatz credential dump',
+        logs:   'Paste raw security logs here. The backend will extract events, build a MITRE query, then retrieve from ChromaDB.\n\nExample:\n  2024-01-15 03:22:11 Failed password for admin from 185.220.101.5 port 54231 ssh2\n  2024-01-15 03:22:31 Accepted password for admin from 185.220.101.5 port 54251 ssh2',
+        direct: 'Type a direct semantic search query against the MITRE ATT&CK database.\n\nExample:\n  brute force credential stuffing T1110\n  lateral movement SMB PsExec\n  defense evasion lolbas signed binary'
+      }[m];
+      document.getElementById('query-input').placeholder = placeholder;
+    }
+
+    /* ─── Preset loader ────────────────────────────────── */
+    function loadPreset(btn, text) {
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('query-input').value = text;
+    }
+
+    /* ─── State switcher ───────────────────────────────── */
+    const STATES = ['state-empty','state-loading','state-error','state-results'];
+    function showState(id) {
+      STATES.forEach(s => {
+        document.getElementById(s)?.classList.toggle('hidden', s !== id);
+      });
+    }
+
+    /* ─── Loading animation ────────────────────────────── */
+    const STEP_DELAYS = [200, 600, 1200, 2000, 3000];
+    function startLoadingAnimation() {
+      for (let i = 0; i < 5; i++) {
+        const el = document.getElementById(`ls-${i}`);
+        if (el) { el.className = 'l-step'; }
+      }
+      if (animTimer) clearTimeout(animTimer);
+
+      function step(i) {
+        if (i >= 5) return;
+        const prev = document.getElementById(`ls-${i-1}`);
+        if (prev) prev.className = 'l-step done';
+        const cur  = document.getElementById(`ls-${i}`);
+        if (cur) cur.className = 'l-step active';
+        animTimer = setTimeout(() => step(i+1), STEP_DELAYS[i] || 800);
+      }
+      step(0);
+    }
+    function stopLoadingAnimation() {
+      if (animTimer) { clearTimeout(animTimer); animTimer = null; }
+      for (let i = 0; i < 5; i++) {
+        const el = document.getElementById(`ls-${i}`);
+        if (el) el.className = 'l-step done';
+      }
+    }
+
+    /* ─── Meta chips ──────────────────────────────────── */
+    function setMeta(source, count, timeMs) {
+      const srcEl   = document.getElementById('meta-source');
+      const cntEl   = document.getElementById('meta-count');
+      const timeEl  = document.getElementById('meta-time');
+
+      srcEl.textContent  = `SOURCE: ${(source || 'unknown').toUpperCase()}`;
+      srcEl.className    = `meta-chip ${source === 'vector_db' ? 'ok' : source === 'none' ? '' : 'warn'}`;
+      srcEl.style.display = '';
+
+      cntEl.textContent  = `${count} PASSAGE${count !== 1 ? 'S' : ''}`;
+      cntEl.className    = `meta-chip ${count > 0 ? 'ok' : 'warn'}`;
+      cntEl.style.display = '';
+
+      timeEl.textContent = `${timeMs}ms`;
+      timeEl.style.display = '';
+    }
+
+    /* ─── Escape HTML ─────────────────────────────────── */
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    /* ─── Fetch with timeout ──────────────────────────── */
+    async function fetchWithTimeout(url, opts, ms = 60000) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), ms);
+      try {
+        return await fetch(url, { ...opts, signal: ctrl.signal });
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    /* ─── MAIN: Run Query ─────────────────────────────── */
+    async function runQuery() {
+      const q = document.getElementById('query-input').value.trim();
+      if (!q) {
+        const ta = document.getElementById('query-input');
+        ta.classList.add('shake');
+        setTimeout(() => ta.classList.remove('shake'), 400);
+        return;
+      }
+
+      const k = parseInt(document.getElementById('k-select').value) || 3;
+      const btn = document.getElementById('run-btn');
+      btn.disabled = true;
+      btn.textContent = '⌛  QUERYING…';
+
+      showState('state-loading');
+      startLoadingAnimation();
+      const t0 = Date.now();
+
+      try {
+        // Build payload and choose endpoint based on mode
+        let url;
+        let payload;
+
+        if (mode === 'direct') {
+          // Direct semantic search via dedicated endpoint
+          url = `${API}/rag-test`;
+          payload = { query: q, k: k };
+        } else {
+          // Log-text mode: parse logs, extract MITRE query, then retrieve
+          url = `${API}/parse`;
+          payload = { logs: q, k: k };
+        }
+
+        const res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }, 60000);
+
+        const elapsed = Date.now() - t0;
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        stopLoadingAnimation();
+        renderResults(data, q, elapsed, k);
+        showState('state-results');
+
+        // Mark API online
+        document.getElementById('api-status').classList.add('online');
+        document.getElementById('status-text').textContent = 'API ONLINE';
+
+      } catch (err) {
+        stopLoadingAnimation();
+        let msg;
+        if (err.name === 'AbortError') {
+          msg = 'Request timed out (60s). Is the backend running?';
+        } else if (/fetch|failed/i.test(err.message)) {
+          msg = 'Cannot reach backend API at http://localhost:8000\nMake sure uvicorn is running:\n  uvicorn backend.main:app --reload';
+        } else {
+          msg = err.message;
+        }
+        document.getElementById('err-msg').textContent = msg;
+        showState('state-error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⬡  RETRIEVE FROM VECTOR DB';
+      }
+    }
+
+    /* ─── Render results ──────────────────────────────── */
+    function renderResults(data, originalQuery, elapsed, k) {
+      const ragSnippets = (data.rag_snippets || []).slice(0, k);
+      const ragContext  = data.rag_context  || '';
+      const ragQuery    = data.rag_query    || originalQuery;
+      const ragSource   = data.rag_source   || (ragSnippets.length > 0 ? 'vector_db' : 'none');
+      const events      = data.events       || [];
+
+      lastRawCtx = ragContext;
+
+      // Meta chips
+      setMeta(ragSource, ragSnippets.length, elapsed);
+
+      // Query summary
+      document.getElementById('qs-text').textContent   = ragQuery || '(no query generated)';
+      document.getElementById('qs-source').textContent = ragSource.toUpperCase();
+      document.getElementById('qs-count').textContent  = ragSnippets.length;
+      document.getElementById('qs-events').textContent = events.length;
+
+      // Snippets
+      const snipList = document.getElementById('snip-list');
+      if (ragSnippets.length > 0) {
+        snipList.innerHTML = ragSnippets.map((s, i) => buildSnipCard(s, i)).join('');
+      } else {
+        snipList.innerHTML = `<div class="no-results">
+          <strong>⚠ No passages retrieved</strong><br/>
+          The vector DB returned zero results for this query.<br/><br/>
+          Possible reasons:<br/>
+          · ChromaDB collection is empty — run <code>build_mitre_db.py</code><br/>
+          · Query tokens didn't match any indexed documents<br/>
+          · RAG embedding model not installed
+        </div>`;
+      }
+
+      // RAG source badge in summary
+      document.getElementById('qs-source').innerHTML =
+        `<span class="source-badge source-${ragSource}">${ragSource.toUpperCase()}</span>`;
+
+      // Events table
+      const evSec = document.getElementById('events-section');
+      if (events.length > 0) {
+        evSec.classList.remove('hidden');
+        document.getElementById('events-table').innerHTML = events.slice(0, 15).map((ev, i) =>
+          `<div class="ev-row">
+            <span class="ev-cell idx">${i+1}</span>
+            <span class="ev-cell"><span class="ev-type-badge">${esc(ev.event_type || '?')}</span></span>
+            <span class="ev-cell" title="${esc(ev.raw_log || '')}">${esc((ev.raw_log || ev.description || '—').slice(0, 90))}</span>
+          </div>`
+        ).join('');
+      } else {
+        evSec.classList.add('hidden');
+      }
+
+      // Raw context
+      document.getElementById('raw-pre').textContent = ragContext || '(empty)';
+    }
+
+    /* ─── Snippet card builder ────────────────────────── */
+    const PREVIEW_LEN = 280;
+    function buildSnipCard(text, idx) {
+      const isTrunc = text.length > PREVIEW_LEN;
+      const preview = isTrunc ? text.slice(0, PREVIEW_LEN) + '…' : text;
+      const fullEsc  = esc(text);
+      const prevEsc  = esc(preview);
+      const id = `snip-body-${idx}`;
+      const moreBtnId = `snip-more-${idx}`;
+
+      return `<div class="snip-card">
+        <div class="snip-head">
+          <span class="snip-num">PASSAGE ${idx + 1}</span>
+          <span class="snip-len">${text.length} chars</span>
+        </div>
+        <div class="snip-body" id="${id}">${prevEsc}</div>
+        ${isTrunc ? `<button class="snip-more-btn" id="${moreBtnId}" onclick="toggleSnip(${idx}, ${JSON.stringify(fullEsc)}, ${JSON.stringify(prevEsc)})">▼ SHOW FULL</button>` : ''}
+      </div>`;
+    }
+
+    function toggleSnip(idx, fullEsc, prevEsc) {
+      const bodyEl = document.getElementById(`snip-body-${idx}`);
+      const btnEl  = document.getElementById(`snip-more-${idx}`);
+      if (!bodyEl || !btnEl) return;
+      if (btnEl.textContent.includes('SHOW FULL')) {
+        bodyEl.innerHTML = fullEsc;
+        btnEl.textContent = '▲ COLLAPSE';
+      } else {
+        bodyEl.innerHTML = prevEsc;
+        btnEl.textContent = '▼ SHOW FULL';
+      }
+    }
+
+    /* ─── Copy raw context ────────────────────────────── */
+    function copyRaw() {
+      if (!lastRawCtx) return;
+      navigator.clipboard.writeText(lastRawCtx).then(() => {
+        const btn = document.getElementById('copy-raw-btn');
+        if (!btn) return;
+        btn.textContent = 'COPIED ✓';
+        btn.style.color = 'var(--green)';
+        setTimeout(() => {
+          btn.textContent = 'COPY';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
+    /* ─── Keyboard shortcut ───────────────────────────── */
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!document.getElementById('run-btn').disabled) runQuery();
+      }
+    });
+
+    /* ─── API health check ────────────────────────────── */
+    async function checkAPI() {
+      const chip = document.getElementById('api-status');
+      const txt  = document.getElementById('status-text');
+      try {
+        const res = await fetch(`${API}/`, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          chip.classList.add('online');
+          txt.textContent = 'API ONLINE';
+        } else {
+          txt.textContent = 'API ERROR';
+        }
+      } catch {
+        txt.textContent = 'API OFFLINE';
+      }
+    }
+
+    /* ─── Init ────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAPI();
+    });
+  </script>
+
+</body>
+</html>

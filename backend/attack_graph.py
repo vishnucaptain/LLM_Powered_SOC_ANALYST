@@ -15,7 +15,10 @@ Output format:
 }
 """
 
-import networkx as nx
+try:
+    import networkx as nx
+except Exception:  # pragma: no cover - fallback is exercised only without networkx
+    nx = None
 from typing import List, Dict, Any, Optional
 from collections import Counter
 
@@ -58,16 +61,65 @@ def build_attack_graph(events: list) -> Dict[str, Any]:
 
     Returns a dict with nodes, edges, stages, and kill-chain info.
     """
-    G = nx.DiGraph()
-
     if not events:
         return {"nodes": [], "edges": [], "stages": [], "kill_chain_stage": "Benign"}
 
-    # Build node IDs and add to graph
     # Node ID = event_type (aggregated — we compress multiple of the same type)
     node_counts: Counter = Counter()
     for event in events:
         node_counts[event.event_type] += 1
+
+    # Compute edge weights from consecutive events
+    edge_weights: Counter = Counter()
+    for i in range(len(events) - 1):
+        src = events[i].event_type
+        dst = events[i + 1].event_type
+        if src != dst:  # skip self-loops for clarity
+            edge_weights[(src, dst)] += 1
+
+    # First-appearance order (used as stable fallback attack path)
+    seen = {}
+    for event in events:
+        if event.event_type not in seen:
+            seen[event.event_type] = len(seen)
+
+    # Fallback path when networkx is unavailable
+    if nx is None:
+        present_stages = []
+        for stage in STAGE_ORDER:
+            if any(KILL_CHAIN_MAP.get(et) == stage for et in node_counts.keys()):
+                present_stages.append(stage)
+
+        furthest_stage = present_stages[-1] if present_stages else "Benign"
+
+        nodes = [
+            {
+                "id": event_type,
+                "label": event_type.replace("_", " ").title(),
+                "type": event_type,
+                "count": count,
+                "kill_chain": KILL_CHAIN_MAP.get(event_type, "Unknown"),
+            }
+            for event_type, count in node_counts.items()
+        ]
+
+        edges = [
+            {"source": src, "target": dst, "weight": weight}
+            for (src, dst), weight in edge_weights.items()
+        ]
+
+        attack_path = sorted(node_counts.keys(), key=lambda n: seen.get(n, 999))
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "stages": present_stages,
+            "kill_chain_stage": furthest_stage,
+            "attack_path": attack_path,
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+        }
+
+    G = nx.DiGraph()
 
     # Add nodes
     for event_type, count in node_counts.items():
@@ -78,14 +130,6 @@ def build_attack_graph(events: list) -> Dict[str, Any]:
             count=count,
             kill_chain=KILL_CHAIN_MAP.get(event_type, "Unknown"),
         )
-
-    # Add directed edges (event[i] → event[i+1])
-    edge_weights: Counter = Counter()
-    for i in range(len(events) - 1):
-        src = events[i].event_type
-        dst = events[i + 1].event_type
-        if src != dst:  # skip self-loops for clarity
-            edge_weights[(src, dst)] += 1
 
     for (src, dst), weight in edge_weights.items():
         if G.has_node(src) and G.has_node(dst):
@@ -128,11 +172,6 @@ def build_attack_graph(events: list) -> Dict[str, Any]:
     try:
         attack_path = list(nx.topological_sort(G))
     except (nx.NetworkXError, nx.NetworkXUnfeasible):
-        # Sort nodes by first-appearance order in the event sequence
-        seen = {}
-        for event in events:
-            if event.event_type not in seen:
-                seen[event.event_type] = len(seen)
         attack_path = sorted(node_counts.keys(), key=lambda n: seen.get(n, 999))
 
     return {

@@ -95,6 +95,7 @@ def generate_report(
     raw_logs: str,
     rag_snippets: Optional[List[str]] = None,  # MITRE ATT&CK passages from ChromaDB
     mitre_query: Optional[str] = None,          # The query used for RAG retrieval
+    events: Optional[List[Any]] = None,         # SecurityEvent objects for MITRE fallback
 ) -> Dict[str, Any]:
     """
     Generate the final structured incident report.
@@ -118,6 +119,21 @@ def generate_report(
     severity_text = _parse_severity_from_text(llm_output)
     mitre_techniques = _parse_mitre_from_text(llm_output)
     attack_stage = _parse_attack_stage_from_text(llm_output)
+
+    # Fallback: if LLM parsing found no T-codes, extract from mitre_query
+    # (which is built from event-level mitre_hint fields like "T1110 Brute Force")
+    if not mitre_techniques and mitre_query:
+        mitre_techniques = _parse_mitre_from_text(mitre_query)
+
+    # Second fallback: extract from event mitre_hints directly
+    if not mitre_techniques and events:
+        import re as _re
+        for event in events:
+            hint = getattr(event, "mitre_hint", None)
+            if hint:
+                found = _re.findall(r"T\d{4}(?:\.\d{3})?", hint)
+                mitre_techniques.extend(found)
+        mitre_techniques = list(dict.fromkeys(mitre_techniques))  # deduplicate
 
     # Collect all event types across sessions
     all_event_types = []

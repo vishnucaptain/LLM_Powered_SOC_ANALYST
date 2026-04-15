@@ -20,10 +20,21 @@ this sequence → anomalous.
 """
 
 import os
-import torch
-import torch.nn as nn
-import numpy as np
 from typing import List, Optional, Tuple
+
+try:
+    import numpy as np
+except Exception:  # pragma: no cover - exercised only when numpy is absent
+    np = None
+
+try:
+    import torch
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+except Exception:  # pragma: no cover - exercised only when torch is absent
+    torch = None
+    nn = None
+    TORCH_AVAILABLE = False
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 VOCAB_SIZE  = 10      # number of event types (matches EVENT_TYPE_MAP)
@@ -41,111 +52,115 @@ MODEL_PATH = os.path.join(
 
 # ── Model Definition ──────────────────────────────────────────────────────────
 
-class LSTMAutoencoder(nn.Module):
-    """
-    LSTM-based sequence autoencoder.
-    Encodes an event-type sequence, then decodes it step-by-step.
-    Reconstruction error is the anomaly signal.
-    """
-
-    def __init__(
-        self,
-        vocab_size: int = VOCAB_SIZE,
-        embed_dim: int  = EMBED_DIM,
-        hidden_size: int = HIDDEN_SIZE,
-        num_layers: int  = NUM_LAYERS,
-    ):
-        super().__init__()
-        self.vocab_size  = vocab_size
-        self.embed_dim   = embed_dim
-        self.hidden_size = hidden_size
-        self.num_layers  = num_layers
-
-        # Shared embedding layer
-        self.embedding = nn.Embedding(
-            num_embeddings=vocab_size,
-            embedding_dim=embed_dim,
-            padding_idx=PAD_IDX,
-        )
-
-        # Encoder LSTM
-        self.encoder = nn.LSTM(
-            input_size=embed_dim,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=0.2 if num_layers > 1 else 0.0,
-        )
-
-        # Bottleneck: compress encoder output
-        self.bottleneck = nn.Linear(hidden_size, hidden_size // 2)
-        self.bn_act      = nn.ReLU()
-        self.expand      = nn.Linear(hidden_size // 2, hidden_size)
-
-        # Decoder LSTM
-        self.decoder = nn.LSTM(
-            input_size=embed_dim,
-            hidden_size=hidden_size,
-            num_layers=1,
-            batch_first=True,
-        )
-
-        # Project decoder output to vocab logits
-        self.output_proj = nn.Linear(hidden_size, vocab_size)
-
-        # Dropout for regularisation
-        self.dropout = nn.Dropout(0.1)
-
-    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, tuple]:
+if TORCH_AVAILABLE:
+    class LSTMAutoencoder(nn.Module):
         """
-        Encode a padded sequence of event-type tokens.
-        x: (batch, seq_len) int tensor
-        Returns: (context_vector, decoder_init_hidden)
+        LSTM-based sequence autoencoder.
+        Encodes an event-type sequence, then decodes it step-by-step.
+        Reconstruction error is the anomaly signal.
         """
-        embedded = self.dropout(self.embedding(x))          # (B, L, E)
-        _, (hidden, cell) = self.encoder(embedded)          # hidden: (layers, B, H)
 
-        # Use top encoder layer for bottleneck
-        top_hidden = hidden[-1]                             # (B, H)
-        compressed = self.bn_act(self.bottleneck(top_hidden))  # (B, H/2)
-        expanded   = self.expand(compressed)               # (B, H)
+        def __init__(
+            self,
+            vocab_size: int = VOCAB_SIZE,
+            embed_dim: int  = EMBED_DIM,
+            hidden_size: int = HIDDEN_SIZE,
+            num_layers: int  = NUM_LAYERS,
+        ):
+            super().__init__()
+            self.vocab_size  = vocab_size
+            self.embed_dim   = embed_dim
+            self.hidden_size = hidden_size
+            self.num_layers  = num_layers
 
-        # Initialise decoder with expanded context
-        dec_h = expanded.unsqueeze(0)                       # (1, B, H)
-        dec_c = torch.zeros_like(dec_h)
-        return expanded, (dec_h, dec_c)
+            # Shared embedding layer
+            self.embedding = nn.Embedding(
+                num_embeddings=vocab_size,
+                embedding_dim=embed_dim,
+                padding_idx=PAD_IDX,
+            )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Full autoencoder forward pass.
-        x: (batch, seq_len) int tensor
-        Returns: logits (batch, seq_len, vocab_size)
-        """
-        _, (dec_h, dec_c) = self.encode(x)
+            # Encoder LSTM
+            self.encoder = nn.LSTM(
+                input_size=embed_dim,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                batch_first=True,
+                dropout=0.2 if num_layers > 1 else 0.0,
+            )
 
-        # Teacher-forced decoding: feed embedded input sequence to decoder
-        embedded = self.dropout(self.embedding(x))          # (B, L, E)
-        dec_out, _ = self.decoder(embedded, (dec_h, dec_c)) # (B, L, H)
-        logits = self.output_proj(dec_out)                  # (B, L, V)
-        return logits
+            # Bottleneck: compress encoder output
+            self.bottleneck = nn.Linear(hidden_size, hidden_size // 2)
+            self.bn_act      = nn.ReLU()
+            self.expand      = nn.Linear(hidden_size // 2, hidden_size)
 
-    def reconstruction_loss(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Compute mean cross-entropy reconstruction loss per sample.
-        x: (batch, seq_len) int tensor
-        Returns: (batch,) float tensor — per-sample loss
-        """
-        logits = self.forward(x)                            # (B, L, V)
-        B, L, V = logits.shape
+            # Decoder LSTM
+            self.decoder = nn.LSTM(
+                input_size=embed_dim,
+                hidden_size=hidden_size,
+                num_layers=1,
+                batch_first=True,
+            )
 
-        # Flatten for cross-entropy
-        logits_flat = logits.reshape(B * L, V)
-        targets_flat = x.reshape(B * L)
+            # Project decoder output to vocab logits
+            self.output_proj = nn.Linear(hidden_size, vocab_size)
 
-        loss_fn = nn.CrossEntropyLoss(ignore_index=PAD_IDX, reduction="none")
-        per_token_loss = loss_fn(logits_flat, targets_flat)  # (B*L,)
-        per_sample_loss = per_token_loss.reshape(B, L).mean(dim=1)  # (B,)
-        return per_sample_loss
+            # Dropout for regularisation
+            self.dropout = nn.Dropout(0.1)
+
+        def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, tuple]:
+            """
+            Encode a padded sequence of event-type tokens.
+            x: (batch, seq_len) int tensor
+            Returns: (context_vector, decoder_init_hidden)
+            """
+            embedded = self.dropout(self.embedding(x))          # (B, L, E)
+            _, (hidden, cell) = self.encoder(embedded)          # hidden: (layers, B, H)
+
+            # Use top encoder layer for bottleneck
+            top_hidden = hidden[-1]                             # (B, H)
+            compressed = self.bn_act(self.bottleneck(top_hidden))  # (B, H/2)
+            expanded   = self.expand(compressed)               # (B, H)
+
+            # Initialise decoder with expanded context
+            dec_h = expanded.unsqueeze(0)                       # (1, B, H)
+            dec_c = torch.zeros_like(dec_h)
+            return expanded, (dec_h, dec_c)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            """
+            Full autoencoder forward pass.
+            x: (batch, seq_len) int tensor
+            Returns: logits (batch, seq_len, vocab_size)
+            """
+            _, (dec_h, dec_c) = self.encode(x)
+
+            # Teacher-forced decoding: feed embedded input sequence to decoder
+            embedded = self.dropout(self.embedding(x))          # (B, L, E)
+            dec_out, _ = self.decoder(embedded, (dec_h, dec_c)) # (B, L, H)
+            logits = self.output_proj(dec_out)                  # (B, L, V)
+            return logits
+
+        def reconstruction_loss(self, x: torch.Tensor) -> torch.Tensor:
+            """
+            Compute mean cross-entropy reconstruction loss per sample.
+            x: (batch, seq_len) int tensor
+            Returns: (batch,) float tensor — per-sample loss
+            """
+            logits = self.forward(x)                            # (B, L, V)
+            B, L, V = logits.shape
+
+            # Flatten for cross-entropy
+            logits_flat = logits.reshape(B * L, V)
+            targets_flat = x.reshape(B * L)
+
+            loss_fn = nn.CrossEntropyLoss(ignore_index=PAD_IDX, reduction="none")
+            per_token_loss = loss_fn(logits_flat, targets_flat)  # (B*L,)
+            per_sample_loss = per_token_loss.reshape(B, L).mean(dim=1)  # (B,)
+            return per_sample_loss
+else:
+    class LSTMAutoencoder:  # pragma: no cover - used only without torch
+        pass
 
 
 # ── Inference Utilities ───────────────────────────────────────────────────────
@@ -156,12 +171,21 @@ _threshold_normal: float = 0.5   # typical loss for normal sequences
 _threshold_attack: float = 2.0   # typical loss for attack sequences
 
 
+def _clip01(value: float) -> float:
+    if np is not None:
+        return float(np.clip(value, 0.0, 1.0))
+    return 0.0 if value < 0.0 else 1.0 if value > 1.0 else float(value)
+
+
 def load_model(model_path: str = MODEL_PATH) -> Optional[LSTMAutoencoder]:
     """
     Load LSTM model from disk. Returns None if weights not found
     (system falls back to heuristic scoring).
     """
     global _model, _threshold_normal, _threshold_attack
+
+    if not TORCH_AVAILABLE:
+        return None
 
     if _model is not None:
         return _model
@@ -237,4 +261,4 @@ def score_sequence(sequence: List[int]) -> float:
     # Normalise to [0, 1] using calibration range
     span = max(_threshold_attack - _threshold_normal, 0.1)
     normalised = (raw_loss - _threshold_normal) / span
-    return round(float(np.clip(normalised, 0.0, 1.0)), 4)
+    return round(_clip01(normalised), 4)
