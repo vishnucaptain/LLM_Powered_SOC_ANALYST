@@ -4,13 +4,13 @@
 
 <br>
 
-**Autonomous Security Investigation powered by Gemini LLM, Behavioral Analysis & RAG**
+**Autonomous Security Investigation powered by OpenAI LLMs, LSTM Behavioral Analysis & RAG**
 
 <br>
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Gemini](https://img.shields.io/badge/Gemini_LLM-2.5_Flash-FF6F00?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![OpenAI](https://img.shields.io/badge/OpenAI_LLM-gpt--4o--mini-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5-6A1B9A?style=for-the-badge&logo=databricks&logoColor=white)](https://www.trychroma.com/)
 [![LangChain](https://img.shields.io/badge/LangChain-0.2-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://www.langchain.com/)
 [![MITRE ATT&CK](https://img.shields.io/badge/MITRE_ATT%26CK-Enterprise-ED1C24?style=for-the-badge&logo=shield&logoColor=white)](https://attack.mitre.org/)
@@ -170,11 +170,12 @@ This system automates the full SOC investigation lifecycle using AI:
 <td>
 
 ```
-✅ Log ingestion & normalization
+✅ Log ingestion & normalization (Syslog, OSQuery, JSON)
 ✅ Security event extraction
-✅ Behavioral sequence analysis
+✅ Exponential LSTM algorithmic anomaly scoring
 ✅ MITRE ATT&CK threat retrieval (RAG)
-✅ LLM-powered investigation (Gemini)
+✅ Strict Regex JSON-enforced output
+✅ LLM-powered investigation (OpenAI)
 ✅ Automated incident reporting
 ```
 
@@ -335,15 +336,16 @@ flowchart LR
 ```
 LLM_Powered_SOC_ANALYST/
 │
-├── 📁 backend/                    # Core application code
-│   ├── __init__.py               # Package initialization
-│   ├── main.py                   # FastAPI server & route definitions
-│   ├── models.py                 # Pydantic request/response schemas
-│   ├── llm_agent.py              # Gemini LLM agent with RAG integration
-│   ├── gemini_agent.py           # Standalone Gemini analysis module
-│   ├── rag_engine.py             # RAG retrieval from MITRE vector DB
-│   ├── log_parser.py             # Log parsing & normalization utilities
-│   └── build_mitre_db.py         # Script to build MITRE ATT&CK vector DB
+├── 📁 backend/                    # Core modular application code
+│   ├── 📁 ingestion/             # Auto-detect JSON/syslog parsers
+│   ├── 📁 processing/            # Event mapping & clustering
+│   ├── 📁 reasoning/             # OpenAI Python Agent
+│   ├── 📁 models/                # Mathematical LSTM Anomaly Engine
+│   ├── 📁 rag/                   # MITRE Vector Retrieval
+│   ├── 📁 evaluation/            # Dedicated ML CLI Evaluation suite
+│   ├── 📁 utils/                 # Strict Regex JSON Extractors
+│   ├── main.py                   # FastAPI server routing
+│   └── schemas.py                # Pydantic request/response models
 │
 ├── 📁 data/
 │   └── enterprise-attack.json    # MITRE ATT&CK Enterprise dataset (STIX 2.1)
@@ -446,11 +448,11 @@ Retrieval-Augmented Generation grounds the LLM in cybersecurity knowledge:
 </details>
 
 <details>
-<summary><b>🤖 Gemini LLM Agent</b></summary>
+<summary><b>🤖 OpenAI LLM Agent</b></summary>
 
 <br>
 
-The Gemini 2.5 Flash model performs investigation by:
+The OpenAI (GPT-4) reasoning engine performs investigation by:
 
 - 🔍 Analyzing event sequences for attack indicators
 - 🎯 Mapping events to specific MITRE ATT&CK technique IDs
@@ -663,8 +665,8 @@ outbound connection to external IP
 </tr>
 <tr>
 <td><b>🤖 LLM</b></td>
-<td>Google Gemini</td>
-<td><code>2.5 Flash</code></td>
+<td>OpenAI via OpenRouter</td>
+<td><code>gpt-4o-mini</code></td>
 <td>AI reasoning engine</td>
 </tr>
 <tr>
@@ -741,13 +743,15 @@ outbound connection to external IP
 
 ## 🗺️ Roadmap
 
-- [x] Core investigation pipeline with Gemini LLM
+- [x] Core investigation pipeline with OpenAI LLMs
 - [x] RAG integration with MITRE ATT&CK knowledge base
 - [x] FastAPI REST API with Swagger documentation
 - [x] ChromaDB vector store with persistent embeddings
-- [ ] Frontend SOC analyst dashboard (React)
-- [ ] LSTM-based behavioral sequence detection
-- [ ] Multi-log source ingestion (Splunk, Elastic)
+- [x] Modular Domain-Driven backend restructuring
+- [x] Frontend HTML/JS/CSS interactive SOC dashboard
+- [x] LSTM-based behavioral sequence anomaly detection
+- [x] Standalone Developer ML Evaluation module
+- [x] Multi-log source ingestion (Syslog, JSON Arrays)
 - [ ] Real-time log streaming support
 - [ ] Role-based access control (RBAC)
 - [ ] Investigation history and audit trail
