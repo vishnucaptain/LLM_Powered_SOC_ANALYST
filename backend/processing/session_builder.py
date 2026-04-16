@@ -23,7 +23,7 @@ Output per session:
 import uuid
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
-from backend.event_extractor import SecurityEvent
+from backend.processing.event_extractor import SecurityEvent
 
 # Session window in seconds — events from the same actor within this
 # gap are grouped together.

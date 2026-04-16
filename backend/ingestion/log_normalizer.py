@@ -182,46 +182,18 @@ def normalize_json_log(obj: Dict[str, Any]) -> Dict[str, Any]:
 
 def normalize_logs(raw_input: str) -> List[Dict[str, Any]]:
     """
-    Main entry point. Accepts:
-      - Multi-line raw text log
-      - JSON array of log objects
-      - JSON Lines (one JSON dict per line)
-
-    Returns a list of normalized log dicts.
+    Main entry point. Uses the new log_parser to determine formats,
+    then routes to the correct normalization method.
     """
+    from backend.ingestion.log_parser import detect_and_parse_logs
+    
     normalized = []
-
-    stripped = raw_input.strip()
-
-    # ── Try JSON array ────────────────────────────────────────────────────────
-    if stripped.startswith("["):
-        try:
-            objects = json.loads(stripped)
-            for obj in objects:
-                if isinstance(obj, dict):
-                    normalized.append(normalize_json_log(obj))
-                else:
-                    normalized.append(normalize_text_log(str(obj)))
-            return normalized
-        except json.JSONDecodeError:
-            pass
-
-    # ── Try JSON Lines ────────────────────────────────────────────────────────
-    lines = stripped.splitlines()
-    parsed_as_json = 0
-    temp = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith("{"):
-            try:
-                obj = json.loads(line)
-                temp.append(normalize_json_log(obj))
-                parsed_as_json += 1
-                continue
-            except json.JSONDecodeError:
-                pass
-        temp.append(normalize_text_log(line))
-
-    return temp
+    parsed_items = detect_and_parse_logs(raw_input)
+    
+    for item in parsed_items:
+        if isinstance(item, dict):
+            normalized.append(normalize_json_log(item))
+        elif isinstance(item, str):
+            normalized.append(normalize_text_log(item))
+            
+    return normalized

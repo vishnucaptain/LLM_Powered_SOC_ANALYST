@@ -37,7 +37,7 @@
         style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);text-decoration:none;padding:3px 9px;border:1px solid var(--border);border-radius:4px;transition:all 0.2s;"
         onmouseover="this.style.color='var(--cyan)';this.style.borderColor='var(--cyan)'"
         onmouseout="this.style.color='var(--text-2)';this.style.borderColor='var(--border)'">🗄 RAG TEST</a>
-      <div class="model-chip">GEMINI 2.5 FLASH</div>
+      <div class="model-chip">OPENAI</div>
       <div class="clock" id="clock"></div>
     </div>
   </div>
@@ -152,7 +152,7 @@
           </div>
           <div class="stack-row">
             <span class="stack-key">LLM</span>
-            <span class="stack-val">Gemini 2.5 Flash</span>
+            <span class="stack-val">OpenAI (OpenRouter)</span>
           </div>
           <div class="stack-row">
             <span class="stack-key">GRAPH</span>
@@ -188,7 +188,8 @@
 </pre>
         </div>
         <p class="empty-hint">Select a scenario, paste logs, or upload a <strong>.log</strong> / <strong>.txt</strong> /
-          <strong>.csv</strong> file using the button in the left panel.</p>
+          <strong>.csv</strong> file using the button in the left panel.
+        </p>
       </div>
 
       <!-- Loading state -->
@@ -214,7 +215,7 @@
           <div class="pipe-step" id="ps-4"><span class="pipe-num">05</span><span class="pipe-label">MITRE ATT&CK RAG
               retrieval</span><span class="pipe-status"></span></div>
           <div class="pipe-step" id="ps-5"><span class="pipe-num">06</span><span class="pipe-label">LLM investigation
-              (Gemini)</span><span class="pipe-status"></span></div>
+              (OpenAI)</span><span class="pipe-status"></span></div>
           <div class="pipe-step" id="ps-6"><span class="pipe-num">07</span><span class="pipe-label">Attack graph +
               report</span><span class="pipe-status"></span></div>
         </div>

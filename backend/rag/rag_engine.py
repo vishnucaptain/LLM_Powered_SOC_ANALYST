@@ -9,8 +9,8 @@ _vector_db: Optional[Any] = None
 
 
 def _project_root() -> str:
-    # backend/rag_engine.py -> project root
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # backend/rag/rag_engine.py -> backend/rag -> backend -> project root
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _resolve_persist_directory() -> str:

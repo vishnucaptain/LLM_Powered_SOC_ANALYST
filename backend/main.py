@@ -23,16 +23,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional as _Optional
 
-from backend.models import LogRequest, InvestigateResponse
-from backend.log_normalizer import normalize_logs
-from backend.event_extractor import extract_events, events_to_sequence, get_mitre_query
-from backend.session_builder import build_sessions, sessions_summary
-from backend.threat_intel import enrich_events
-from backend.attack_graph import build_attack_graph, attack_graph_summary
-from backend.lstm_model import score_sequence
-from backend.llm_agent import investigate_logs
-from backend.rag_engine import retrieve_context
+from backend.schemas import LogRequest, InvestigateResponse
+from backend.ingestion.log_normalizer import normalize_logs
+from backend.processing.event_extractor import extract_events, events_to_sequence, get_mitre_query
+from backend.processing.session_builder import build_sessions, sessions_summary
+from backend.processing.threat_intel import enrich_events
+from backend.models.attack_graph import build_attack_graph, attack_graph_summary
+from backend.models.lstm_model import score_sequence
+from backend.reasoning.llm_agent import investigate_logs
+from backend.rag.rag_engine import retrieve_context
 from backend.incident_report import generate_report
+
 
 app = FastAPI(
     title="LLM-Powered SOC Analyst",
@@ -152,34 +153,24 @@ def investigate(request: LogRequest):
         executor.shutdown(wait=False)
     except concurrent.futures.TimeoutError:
         llm_warning = "OpenRouter LLM generation timed out. The API request took too long."
-        llm_output = (
-            "attack_stage: Unknown\n\n"
-            "mitre_technique: Unknown\n\n"
-            "severity: MEDIUM\n\n"
-            "confidence: 50%\n\n"
-            "explanation:\n"
-            "- OpenRouter LLM generation timed out.\n"
-            "- The API request to OpenRouter took too long to complete.\n"
-            "\n"
-            "recommended_actions:\n"
-            "- Check OpenRouter API status or check your internet connection."
-        )
+        llm_output = {
+            "attack_stage": "Unknown",
+            "mitre_technique": ["Unknown"],
+            "severity": "MEDIUM",
+            "confidence": "50%",
+            "explanation": "OpenRouter LLM generation timed out.\nThe API request to OpenRouter took too long to complete.",
+            "recommended_actions": ["Check OpenRouter API status or check your internet connection."]
+        }
     except Exception as e:  # catches RuntimeError, etc.
         llm_warning = f"OpenRouter LLM unavailable: {e}"
-        llm_output = (
-            "attack_stage: Unknown\n\n"
-            "mitre_technique: Unknown\n\n"
-            "severity: MEDIUM\n\n"
-            "confidence: 50%\n\n"
-            "explanation:\n"
-            "- OpenRouter LLM could not execute successfully.\n"
-            "- Core detections (events, sessions, anomaly score, threat intel, RAG, attack graph) were still processed.\n"
-            "- Review technical indicators and enrichment data in this report for triage.\n"
-            "\n"
-            "recommended_actions:\n"
-            "- Ensure your OpenRouter API key is valid and configured in the environment variables.\n"
-            "- Ensure you have stable internet connection."
-        )
+        llm_output = {
+            "attack_stage": "Unknown",
+            "mitre_technique": ["Unknown"],
+            "severity": "MEDIUM",
+            "confidence": "50%",
+            "explanation": "OpenRouter LLM could not execute successfully.\nCore detections (events, sessions, anomaly score, threat intel, RAG, attack graph) were still processed.\nReview technical indicators and enrichment data in this report for triage.",
+            "recommended_actions": ["Ensure your API key is valid and configured.", "Ensure you have stable internet connection."]
+        }
 
     # ── Step 9: Incident Report Generation ───────────────────────────────
     report = generate_report(
@@ -187,7 +178,7 @@ def investigate(request: LogRequest):
         anomaly_score=anomaly_score,
         threat_intel=ti_dict,
         attack_graph=graph,
-        llm_output=llm_output,
+        llm_parsed=llm_output,
         raw_logs=raw_logs,
         rag_snippets=rag_snippets,       # <— RAG passages now in report
         mitre_query=mitre_query,         # <— show what query was used
@@ -198,9 +189,10 @@ def investigate(request: LogRequest):
         report["llm_warning"] = llm_warning
 
     # ── Step 10: Add legacy field for frontend backward-compat ────────────
-    report["investigation"] = llm_output
+    import json
+    report["investigation"] = json.dumps(llm_output)
 
-    return report
+    return InvestigateResponse(**report)
 
 
 # ── Auxiliary endpoints ───────────────────────────────────────────────────────

@@ -91,34 +91,20 @@ def generate_report(
     anomaly_score: float,
     threat_intel: Dict[str, Any],
     attack_graph: Dict[str, Any],
-    llm_output: str,
+    llm_parsed: Dict[str, Any],
     raw_logs: str,
-    rag_snippets: Optional[List[str]] = None,  # MITRE ATT&CK passages from ChromaDB
-    mitre_query: Optional[str] = None,          # The query used for RAG retrieval
-    events: Optional[List[Any]] = None,         # SecurityEvent objects for MITRE fallback
+    rag_snippets: Optional[List[str]] = None,
+    mitre_query: Optional[str] = None,
+    events: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
     """
     Generate the final structured incident report.
-
-    Parameters
-    ----------
-    sessions       : List of session dicts from session_builder
-    anomaly_score  : Float 0.0–1.0 from LSTM model (0=normal, 1=anomaly)
-    threat_intel   : Dict from threat_intel.ThreatIntelReport.to_dict()
-    attack_graph   : Dict from attack_graph.build_attack_graph()
-    llm_output     : Raw text from Gemini LLM
-    raw_logs       : Original raw log input
-    rag_snippets   : MITRE ATT&CK text passages retrieved from ChromaDB
-    mitre_query    : The compound query used to retrieve those passages
-
-    Returns
-    -------
-    Fully structured JSON-serializable incident report dict.
+    Accepts the direct JSON dictionary from the reasoning engine.
     """
     # ── Core parsing ──────────────────────────────────────────────────────────
-    severity_text = _parse_severity_from_text(llm_output)
-    mitre_techniques = _parse_mitre_from_text(llm_output)
-    attack_stage = _parse_attack_stage_from_text(llm_output)
+    severity_text = llm_parsed.get("severity", "MEDIUM")
+    mitre_techniques = llm_parsed.get("mitre_technique", [])
+    attack_stage = llm_parsed.get("attack_stage", "Unknown")
 
     # Fallback: if LLM parsing found no T-codes, extract from mitre_query
     # (which is built from event-level mitre_hint fields like "T1110 Brute Force")
@@ -149,8 +135,17 @@ def generate_report(
         attack_stage = kill_chain_stage
 
     # ── Confidence ───────────────────────────────────────────────────────────
+    # Parse the percentage string string from the JSON to a float, then average it
+    llm_conf_str = str(llm_parsed.get("confidence", "50%")).replace('%', '')
+    try:
+        llm_conf_float = float(llm_conf_str) / 100.0
+    except ValueError:
+        llm_conf_float = 0.5
+
     ti_risk = threat_intel.get("max_risk_score", 0)
-    confidence = _calculate_confidence(anomaly_score, ti_risk, all_event_types)
+    base_confidence = _calculate_confidence(anomaly_score, ti_risk, all_event_types)
+    
+    confidence = round((base_confidence * 0.5) + (llm_conf_float * 0.5), 3)
 
     # ── Severity resolution ──────────────────────────────────────────────────
     # Take the max of: LLM-extracted, threat intel overall risk, anomaly score
@@ -163,18 +158,7 @@ def generate_report(
     final_severity = max(sev_candidates, key=lambda s: SEVERITY_MAP.get(s, 0))
 
     # ── Recommended response ─────────────────────────────────────────────────
-    import re
-    rec_match = re.search(
-        r"recommended[_\s]actions?[:\s]+([\s\S]*?)(?:\n\n|$)",
-        llm_output,
-        re.IGNORECASE,
-    )
-    recommended_raw = rec_match.group(1).strip() if rec_match else llm_output
-    recommended_actions = [
-        line.lstrip("•-*0123456789. ").strip()
-        for line in recommended_raw.splitlines()
-        if line.strip() and len(line.strip()) > 5
-    ][:8]  # cap at 8 actions
+    recommended_actions = llm_parsed.get("recommended_actions", ["Review logs manually."])
 
     # ── Assemble report ───────────────────────────────────────────────────────
     report = {
@@ -203,7 +187,7 @@ def generate_report(
         "rag_query":         mitre_query or "",
         "rag_snippets":      rag_snippets or [],   # MITRE ATT&CK passages from ChromaDB
         # ─────────────────────────────────────────────────────────────────
-        "llm_explanation": llm_output,
+        "llm_explanation":   llm_parsed.get("explanation", "No explanation available."),
         "recommended_response": recommended_actions,
         "raw_log_sample":    raw_logs[:500] if raw_logs else "",
     }

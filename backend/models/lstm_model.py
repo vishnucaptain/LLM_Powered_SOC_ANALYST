@@ -247,7 +247,12 @@ def score_sequence(sequence: List[int]) -> float:
         unique_high = len(set(sequence) & HIGH_RISK_CODES)
         chain_bonus = min(unique_high * 0.1, 0.3)  # up to 0.3 bonus for diverse stages
 
-        raw_score = (high_count * 0.3 + medium_count * 0.1) / total + chain_bonus
+        import math
+        # Make the math much more aggressive for high-risk occurrences
+        # Use log or sqrt to prevent the total volume of 'benign' events from severely diluting a single critical threat
+        effective_total = math.sqrt(total) if total > 1 else 1.0
+
+        raw_score = (high_count * 0.5 + medium_count * 0.2) / effective_total + chain_bonus
         return round(min(raw_score, 1.0), 4)
 
     # ── Neural model scoring ──────────────────────────────────────────────
