@@ -1,91 +1,40 @@
 """
 llm_agent.py
 ------------
-LLM Investigation Engine — Local Hugging Face Phi-3.5-mini-instruct.
+LLM Investigation Engine — OpenRouter API (Dolphin 3.0 Mistral 24b).
 
-Replaces the Gemini API with a fully local LLM.
+Replaces the local LLM with OpenRouter integration.
 Uses RAG context + all pipeline outputs to generate SOC investigation reports.
 
 Key design decisions:
-  - Model is loaded LAZILY on first call — server starts fast even if weights
-    are not yet cached (first call will trigger the ~7 GB download).
-  - All errors are surfaced as RuntimeError so main.py can catch them and
-    fall back to structured defaults without crashing the pipeline.
-  - The prompt format matches the field names incident_report.py parses
-    (attack_stage / mitre_technique / severity / confidence / explanation /
-     recommended_actions).
+  - Connects to OpenRouter.
+  - Returns the parsed response directly without local hardware dependency.
 """
 
 import os
 from typing import Optional
+from openai import OpenAI
+from dotenv import load_dotenv
 
 from backend.rag_engine import retrieve_context
 
 
 # ─────────────────────────────────────────────────────────────
-# MODULE-LEVEL SINGLETONS (populated on first call)
+# MODULE-LEVEL CONFIGURATION
 # ─────────────────────────────────────────────────────────────
 
-MODEL_NAME = "microsoft/Phi-3-mini-4k-instruct"
+load_dotenv()
+_API_KEY = os.getenv("OPEN_ROUTER_API") or os.getenv("OPENROUTER_API_KEY")
 
-_tokenizer = None
-_model     = None
+if not _API_KEY:
+    raise RuntimeError("OPEN_ROUTER_API key not found in environment variables.")
 
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=_API_KEY,
+)
 
-def _load_model():
-    """
-    Lazily load Phi-3.5-mini tokenizer and model.
-    Called once on the first investigate_logs() invocation.
-    Raises RuntimeError with a clear message if anything goes wrong.
-    """
-    global _tokenizer, _model
-
-    if _model is not None:
-        return  # already loaded
-
-    try:
-        import torch
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-    except ImportError as exc:
-        raise RuntimeError(
-            "Required packages missing. Run:\n"
-            "  pip install transformers accelerate\n"
-            f"Original error: {exc}"
-        ) from exc
-
-    try:
-        _tokenizer = AutoTokenizer.from_pretrained(
-            MODEL_NAME,
-            trust_remote_code=False,
-        )
-
-        # Detect if we should use Mac M-series acceleration
-        device = "cpu"
-        dtype = torch.float32
-        if torch.cuda.is_available():
-            device = "cuda"
-            dtype = torch.float16
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            device = "mps"
-            dtype = torch.float16
-
-        _model = AutoModelForCausalLM.from_pretrained(
-            MODEL_NAME,
-            trust_remote_code=False,
-            torch_dtype=dtype,
-            attn_implementation="eager", # Suppresses flash attention warnings
-        ).to(device)
-        _model.eval()
-
-    except Exception as exc:
-        # Reset so a retry will attempt the load again
-        _tokenizer = None
-        _model = None
-        raise RuntimeError(
-            f"Failed to load Phi-3.5 model '{MODEL_NAME}': {exc}\n"
-            "Make sure you have an internet connection for the first download "
-            "or that the model is already cached in ~/.cache/huggingface/."
-        ) from exc
+MODEL_NAME = "openai/gpt-4o-mini"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -101,7 +50,7 @@ def investigate_logs(
     rag_context: str = "",
 ) -> str:
     """
-    Generate a structured SOC incident investigation report using Phi-3.5.
+    Generate a structured SOC incident investigation report using OpenRouter API.
 
     Parameters
     ----------
@@ -116,12 +65,7 @@ def investigate_logs(
     -------
     str : Structured incident report text
     """
-    import torch
-
-    # ── Step 1: Lazy model load ────────────────────────────────────────────
-    _load_model()  # no-op after first call; raises RuntimeError on failure
-
-    # ── Step 2: RAG fallback (if caller didn't pre-fetch context) ─────────
+    # ── Step 1: RAG fallback (if caller didn't pre-fetch context) ─────────
     if not rag_context:
         rag_query = (
             " ".join(str(e) for e in (event_sequence or []))
@@ -129,12 +73,12 @@ def investigate_logs(
         )
         rag_context = retrieve_context(rag_query)
 
-    # ── Step 3: Event sequence formatting ─────────────────────────────────
+    # ── Step 2: Event sequence formatting ─────────────────────────────────
     seq_text = "None detected"
     if event_sequence:
         seq_text = " → ".join(str(e) for e in event_sequence)
 
-    # ── Step 4: Anomaly interpretation ────────────────────────────────────
+    # ── Step 3: Anomaly interpretation ────────────────────────────────────
     if anomaly_score >= 0.8:
         anomaly_assessment = f"CRITICAL ANOMALY (score={anomaly_score:.2f})"
     elif anomaly_score >= 0.6:
@@ -144,7 +88,7 @@ def investigate_logs(
     else:
         anomaly_assessment = f"LOW/NORMAL (score={anomaly_score:.2f})"
 
-    # ── Step 5: Build structured prompt ───────────────────────────────────
+    # ── Step 4: Build structured prompt ───────────────────────────────────
     prompt = f"""You are an expert SOC analyst. Analyze the following security data and generate a structured incident report.
 
 === LOG DATA (excerpt) ===
@@ -182,31 +126,26 @@ recommended_actions:
 - <Action 3>
 """
 
-    # ── Step 6: Apply chat template ────────────────────────────────────────
-    messages = [{"role": "user", "content": prompt}]
-
-    inputs = _tokenizer.apply_chat_template(
-        messages,
-        add_generation_prompt=True,
-        tokenize=True,
-        return_dict=True,
-        return_tensors="pt",
-    ).to(_model.device)
-
-    # ── Step 7: Generate ───────────────────────────────────────────────────
-    with torch.no_grad():
-        outputs = _model.generate(
-            **inputs,
-            max_new_tokens=350,
-            temperature=0.3,
-            do_sample=True,
-            pad_token_id=_tokenizer.eos_token_id,
+    # ── Step 5: Generate using OpenRouter API ──────────────────────────────
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=2000  # Explicitly set so OpenRouter does not pre-authorize massive token limits!
         )
+        result = completion.choices[0].message.content
+        
+        # Dolphin 3.0 / Reasoning models might output <think> tags. 
+        # We strip the <think> blocks so it parses cleanly.
+        import re
+        result_clean = re.sub(r"<think>.*?</think>", "", result, flags=re.DOTALL)
+        
+        return result_clean.strip()
 
-    # Decode only the newly generated tokens (strip the input prompt)
-    result = _tokenizer.decode(
-        outputs[0][inputs["input_ids"].shape[-1]:],
-        skip_special_tokens=True,
-    )
-
-    return result.strip()
+    except Exception as exc:
+        raise RuntimeError(f"OpenRouter API failed: {exc}") from exc

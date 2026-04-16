@@ -147,40 +147,38 @@ def investigate(request: LogRequest):
             attack_graph_summary=graph_summary,
             rag_context=rag_context,         # <— RAG context passed explicitly
         )
-        # Timeout after 10 seconds for graceful, fast UI fallback
-        llm_output = future.result(timeout=10.0)
+        # Timeout after 60 seconds for OpenRouter API
+        llm_output = future.result(timeout=60.0)
         executor.shutdown(wait=False)
     except concurrent.futures.TimeoutError:
-        llm_warning = "Phi-3 LLM generation timed out. Hardware limits may prevent the analysis from finishing quickly."
+        llm_warning = "OpenRouter LLM generation timed out. The API request took too long."
         llm_output = (
             "attack_stage: Unknown\n\n"
             "mitre_technique: Unknown\n\n"
             "severity: MEDIUM\n\n"
             "confidence: 50%\n\n"
             "explanation:\n"
-            "- Phi-3 local LLM generation timed out.\n"
-            "- The model successfully loaded but text generation was too slow on the current hardware.\n"
+            "- OpenRouter LLM generation timed out.\n"
+            "- The API request to OpenRouter took too long to complete.\n"
             "\n"
             "recommended_actions:\n"
-            "- Upgrade to a machine with a dedicated GPU (e.g., Apple Silicon M2/M3 Max, Nvidia GPU) for faster local inference."
+            "- Check OpenRouter API status or check your internet connection."
         )
-    except Exception as e:  # catches RuntimeError, ImportError, OSError, CUDA errors
-        llm_warning = f"Phi-3 LLM unavailable: {e}"
+    except Exception as e:  # catches RuntimeError, etc.
+        llm_warning = f"OpenRouter LLM unavailable: {e}"
         llm_output = (
             "attack_stage: Unknown\n\n"
             "mitre_technique: Unknown\n\n"
             "severity: MEDIUM\n\n"
             "confidence: 50%\n\n"
             "explanation:\n"
-            "- Phi-3 local LLM could not run (model may still be downloading or requires more RAM/VRAM).\n"
+            "- OpenRouter LLM could not execute successfully.\n"
             "- Core detections (events, sessions, anomaly score, threat intel, RAG, attack graph) were still processed.\n"
             "- Review technical indicators and enrichment data in this report for triage.\n"
             "\n"
             "recommended_actions:\n"
-            "- Ensure transformers and accelerate are installed: pip install transformers accelerate.\n"
-            "- Wait for Phi-3.5 model to finish downloading (~7 GB on first run).\n"
-            "- Ensure sufficient RAM (>=8 GB) or VRAM for model inference.\n"
-            "- Restart the backend service and re-run investigation."
+            "- Ensure your OpenRouter API key is valid and configured in the environment variables.\n"
+            "- Ensure you have stable internet connection."
         )
 
     # ── Step 9: Incident Report Generation ───────────────────────────────
