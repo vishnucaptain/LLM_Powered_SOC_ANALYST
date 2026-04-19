@@ -8,6 +8,42 @@
 const API = 'http://localhost:8000';
 const TIMEOUT_MS = 300_000; // 5 minutes
 
+/* ─── JWT Token Management (Silent Background) ─────────────── */
+let authToken = localStorage.getItem('authToken') || null;
+
+function getAuthHeaders() {
+  if (!authToken) return { 'Content-Type': 'application/json' };
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${authToken}`
+  };
+}
+
+async function silentLogin() {
+  // Auto-login with demo credentials in background
+  try {
+    const res = await fetch(`${API}/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: "analyst", password: "password123" })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      authToken = data.access_token;
+      localStorage.setItem('authToken', authToken);
+      return true;
+    }
+  } catch (err) {
+    // Silent fail - continue anyway
+  }
+  return false;
+}
+
+function isAuthenticated() {
+  return authToken !== null;
+}
+
 /* ─── Scenario presets ──────────────────────────────────────── */
 const SCENARIOS = {
   bruteforce:
@@ -76,18 +112,46 @@ setInterval(updateClock, 1000);
 /* ─── API health check ───────────────────────────────────────── */
 async function checkAPI() {
   const chip = document.getElementById('api-status');
-  const dot  = document.getElementById('status-dot');
   const txt  = document.getElementById('status-text');
+  
+  if (!chip || !txt) return false;
+  
   try {
-    const res = await fetch(`${API}/`, { signal: AbortSignal.timeout(3000) });
-    if (res.ok) {
+    const res = await fetch(`${API}/health`, { 
+      signal: AbortSignal.timeout(3000),
+      method: 'GET'
+    });
+    
+    if (res.status === 200) {
       chip.classList.add('online');
+      chip.classList.remove('offline');
       txt.textContent = 'API ONLINE';
-      feedEntry('API connected — http://localhost:8000', 'feed-ok');
+      console.log('✅ API is online');
+      return true;
+    } else {
+      throw new Error(`Status: ${res.status}`);
     }
-  } catch {
+  } catch (err) {
+    console.log('❌ API check failed:', err.message);
+    txt.textContent = 'API OFFLINE';
+    chip.classList.remove('online');
+    chip.classList.add('offline');
+    return false;
+  }
+}
+
+// Check API immediately on load
+async function initAPI() {
+  console.log('Checking API status...');
+  const isOnline = await checkAPI();
+  if (isOnline) {
+    feedEntry('API connected — http://localhost:8000', 'feed-ok');
+  } else {
     feedEntry('API offline — start uvicorn on port 8000', 'feed-warn');
   }
+  
+  // Then check periodically every 5 seconds
+  setInterval(checkAPI, 5000);
 }
 
 /* ─── Detection log feed ─────────────────────────────────────── */
@@ -427,7 +491,7 @@ async function investigate() {
   try {
     const res = await fetch(`${API}/investigate`, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body:    JSON.stringify({ logs }),
       signal:  ctrl.signal,
     });
@@ -435,6 +499,31 @@ async function investigate() {
     clearTimeout(timeout);
 
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        feedEntry('Authentication expired. Retrying...', 'feed-warn');
+        await silentLogin();
+        // Retry with new token
+        const retryRes = await fetch(`${API}/investigate`, {
+          method:  'POST',
+          headers: getAuthHeaders(),
+          body:    JSON.stringify({ logs }),
+          signal:  ctrl.signal,
+        });
+        
+        if (!retryRes.ok) {
+          throw new Error(`Authentication failed: ${retryRes.status}`);
+        }
+        
+        const data = await retryRes.json();
+        finishPipelineAnimation();
+        rawReport = data.investigation || data.llm_explanation || '';
+        renderReport(data);
+        showState('report');
+        document.getElementById('api-status')?.classList.add('online');
+        document.getElementById('status-text').textContent = 'API ONLINE';
+        feedEntry(`Investigation complete — severity: ${data.severity || '?'}`, 'feed-ok');
+        return;
+      }
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `HTTP ${res.status}`);
     }
@@ -573,19 +662,46 @@ function renderReport(data) {
   const ragQuery    = data.rag_query || '';
 
   if (ragSnippets.length > 0) {
-    const queryLine = ragQuery
-      ? `<div class="rag-query">Query: <span>${esc(ragQuery)}</span></div>`
-      : '';
-    const snips = ragSnippets.slice(0, 3).map((s, i) =>
-      `<div class="rag-snippet">
-        <span class="rag-num">${i + 1}</span>
-        <span class="rag-text">${esc(s.slice(0, 220))}${s.length > 220 ? '…' : ''}</span>
-      </div>`
-    ).join('');
-    ragEl.innerHTML = queryLine + snips;
+    let html = '';
+    
+    // Show the RAG query used
+    if (ragQuery) {
+      html += `<div class="rag-query">
+        <span class="rag-query-label">Query:</span>
+        <span class="rag-query-text">${esc(ragQuery)}</span>
+      </div>`;
+    }
+    
+    // Show retrieved snippets with enhanced parsing
+    html += '<div class="rag-snippets-container">';
+    ragSnippets.slice(0, 5).forEach((snippet, i) => {
+      // Extract Technique ID and Name
+      const techIdMatch = snippet.match(/Technique ID:\s*([T\d.]+)/);
+      const techNameMatch = snippet.match(/Technique Name:\s*([^\n]+)/);
+      const tacticsMatch = snippet.match(/Tactics:\s*([^\n]+)/);
+      const descMatch = snippet.match(/Description:\s*([\s\S]*?)(?:Technique ID:|$)/);
+      
+      const techId = techIdMatch ? techIdMatch[1] : '';
+      const techName = techNameMatch ? techNameMatch[1].trim() : '';
+      const tactics = tacticsMatch ? tacticsMatch[1].trim().split(',').map(t => t.trim()) : [];
+      const description = descMatch ? descMatch[1].trim().slice(0, 200) : snippet.slice(0, 200);
+      
+      html += `<div class="rag-snippet" data-index="${i}">
+        <span class="rag-snippet-num">${i + 1}</span>
+        <div class="rag-snippet-content">
+          ${techId ? `<div class="rag-technique-id">${esc(techId)}</div>` : ''}
+          ${techName ? `<div class="rag-technique-name">${esc(techName)}</div>` : ''}
+          ${tactics.length > 0 ? `<div class="rag-tactics">${tactics.map(t => `<span class="rag-tactic">${esc(t)}</span>`).join('')}</div>` : ''}
+          <div class="rag-description">${esc(description)}${description.length > 200 ? '…' : ''}</div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    
+    ragEl.innerHTML = html;
     feedEntry(`RAG: ${ragSnippets.length} MITRE ATT&CK passage(s) retrieved`, 'feed-found');
   } else {
-    ragEl.textContent = 'No MITRE ATT&CK passages retrieved.';
+    ragEl.innerHTML = '<span style="color:var(--text-2)">No MITRE ATT&CK passages retrieved.</span>';
     feedEntry('RAG: no passages retrieved', 'feed-warn');
   }
 
@@ -701,7 +817,11 @@ document.addEventListener('keydown', e => {
 /* ─── Init ────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   updateCounts();
-  checkAPI();
+  initAPI();  // Check API status with logging
+  
+  // Silently login in background
+  silentLogin();
+  
   feedEntry('LSTM model: loaded', 'feed-ok');
   feedEntry('Ready — paste logs or select scenario', 'feed-sys');
 });

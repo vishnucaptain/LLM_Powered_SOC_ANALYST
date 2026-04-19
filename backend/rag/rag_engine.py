@@ -3,6 +3,9 @@ import re
 import sqlite3
 from typing import Any, Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 
 _embedding: Optional[Any] = None
 _vector_db: Optional[Any] = None
@@ -79,7 +82,7 @@ def _get_vector_db() -> Any:
     persist_directory = _resolve_persist_directory()
 
     # Imported lazily so missing optional deps don't crash at module import time.
-    from langchain_community.vectorstores import Chroma
+    from langchain_chroma import Chroma
     from langchain_huggingface import HuggingFaceEmbeddings
 
     _embedding = HuggingFaceEmbeddings(model_name=embedding_model)

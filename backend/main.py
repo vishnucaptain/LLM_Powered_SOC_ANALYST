@@ -17,8 +17,12 @@ Full pipeline:
   10. Return full JSON
 """
 
+# Load environment variables from .env FIRST before any other imports
+from dotenv import load_dotenv
+load_dotenv()
+
 import concurrent.futures
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional as _Optional
@@ -33,6 +37,16 @@ from backend.models.lstm_model import score_sequence
 from backend.reasoning.llm_agent import investigate_logs
 from backend.rag.rag_engine import retrieve_context
 from backend.incident_report import generate_report
+from backend.evaluation.evaluator import run_evaluation as _run_evaluation
+
+# Authentication imports
+from backend.api.auth import (
+    get_current_user,
+    AuthService,
+    TokenData,
+    TokenResponse,
+    JWTConfig,
+)
 
 
 app = FastAPI(
@@ -63,7 +77,7 @@ async def add_private_network_header(request: Request, call_next):
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
-@app.get("/")
+@app.get("/health")
 def health_check():
     return {
         "status": "SOC Analyst API running",
@@ -82,19 +96,123 @@ def health_check():
     }
 
 
+# ── Authentication Endpoints ──────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    """User login credentials."""
+    username: str = Field(..., description="Username")
+    password: str = Field(..., description="Password")
+
+
+class TokenResponseModel(BaseModel):
+    """Token response model for OpenAPI documentation."""
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+@app.post("/auth/token", response_model=TokenResponseModel)
+def login(credentials: LoginRequest):
+    """
+    Authenticate user and get JWT token.
+    
+    **Demo Users (change passwords in production):**
+    - username: `analyst` password: `password123`
+    - username: `admin` password: `admin123`
+    - username: `soc_team` password: `team123`
+    
+    **Usage:**
+    ```bash
+    # Get token
+    curl -X POST "http://localhost:8000/auth/token" \\
+      -H "Content-Type: application/json" \\
+      -d '{"username": "analyst", "password": "password123"}'
+    
+    # Use token in protected endpoints
+    curl -X POST "http://localhost:8000/investigate" \\
+      -H "Authorization: Bearer <your_token>" \\
+      -H "Content-Type: application/json" \\
+      -d '{"logs": "your logs here"}'
+    ```
+    """
+    # Authenticate user
+    user_id = AuthService.authenticate_user(
+        credentials.username,
+        credentials.password
+    )
+    
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Create JWT token
+    token = AuthService.create_access_token(
+        user_id=user_id,
+        username=credentials.username
+    )
+    
+    return TokenResponseModel(
+        access_token=token,
+        token_type="bearer",
+        expires_in=JWTConfig.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: TokenData = Depends(get_current_user)):
+    """
+    Get current authenticated user information.
+    
+    **Requires JWT token in Authorization header:**
+    ```
+    Authorization: Bearer <your_token>
+    ```
+    """
+    return {
+        "user_id": current_user.user_id,
+        "username": current_user.username,
+        "scopes": current_user.scopes,
+        "issued_at": current_user.issued_at.isoformat(),
+        "expires_at": current_user.expires_at.isoformat(),
+    }
+
+
+@app.get("/")
+def root():
+    """Root endpoint with API information."""
+    return {
+        "message": "LLM-Powered SOC Analyst API",
+        "version": "2.0.0",
+        "docs": "/docs",
+        "auth": "/auth/token",
+        "health": "/health",
+    }
+
+
 # ── Main investigation endpoint ───────────────────────────────────────────────
 @app.post("/investigate", response_model=InvestigateResponse)
-def investigate(request: LogRequest):
+async def investigate(
+    request: LogRequest,
+    current_user: TokenData = Depends(get_current_user)
+):
     """
     Full SOC investigation pipeline.
-
+    
+    **Requires JWT authentication.**
+    
+    1. Get token: POST /auth/token
+    2. Use token: Add `Authorization: Bearer <token>` header
+    
     Accepts raw security logs (text, JSON array, or JSON Lines).
     Returns a structured incident report with:
       - LSTM anomaly score
       - MITRE ATT&CK techniques
       - Threat intelligence enrichment
       - Attack graph (NetworkX)
-      - RAG-retrieved MITRE ATT&CK passages  ← now surfaced
+      - RAG-retrieved MITRE ATT&CK passages
       - LLM-generated explanation and recommendations
     """
     raw_logs = request.logs
@@ -259,4 +377,41 @@ def rag_test(request: _RagTestRequest):
         "rag_snippets": rag_snippets,
         "rag_context": rag_context,
         "snippet_count": len(rag_snippets),
+    }
+
+
+# ── Evaluation endpoint ────────────────────────────────────────────────────────
+
+@app.get("/evaluate")
+def evaluate(
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Run the built-in evaluation suite against the labelled test dataset.
+
+    Uses the heuristic mock detector (no LLM inference required) so the endpoint
+    responds quickly and can be used for CI/CD health-checks.
+
+    Returns precision, recall, F1, FPR, accuracy and per-sample confusion matrix.
+
+    **Requires JWT authentication.**
+    """
+    metrics = _run_evaluation(detection_func=None, verbose=False)
+    return {
+        "status": "ok",
+        "dataset_size": metrics["total_samples"],
+        "metrics": {
+            "precision":           metrics["precision"],
+            "recall":              metrics["recall"],
+            "f1_score":            metrics["f1_score"],
+            "false_positive_rate": metrics["false_positive_rate"],
+            "specificity":         metrics["specificity"],
+            "accuracy":            metrics["accuracy"],
+        },
+        "confusion_matrix": {
+            "true_positives":  metrics["true_positives"],
+            "false_positives": metrics["false_positives"],
+            "true_negatives":  metrics["true_negatives"],
+            "false_negatives": metrics["false_negatives"],
+        },
     }

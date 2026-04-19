@@ -982,41 +982,109 @@ pre, code { font-family: var(--mono); }
 
 /* RAG knowledge snippets */
 .rag-query {
-  font-size: 0.67rem;
-  color: var(--text-2);
-  padding: 4px 0 6px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 6px;
+  font-size: 0.68rem;
+  color: var(--text-1);
+  padding: 6px 8px;
+  background: rgba(139, 111, 212, 0.08);
+  border-left: 2px solid var(--purple);
+  margin-bottom: 8px;
+  border-radius: 2px;
   word-break: break-all;
+  display: flex;
+  gap: 6px;
 }
 
-.rag-query span {
+.rag-query-label {
+  font-weight: 600;
   color: var(--purple);
+  flex-shrink: 0;
+}
+
+.rag-query-text {
+  color: var(--text-2);
   font-style: italic;
+  flex: 1;
+}
+
+.rag-snippets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .rag-snippet {
   display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.7rem;
-  line-height: 1.55;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(74, 144, 217, 0.06);
+  border: 1px solid var(--line-bright);
+  border-left: 3px solid var(--blue);
+  border-radius: 3px;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  transition: all 0.2s;
 }
 
-.rag-snippet:last-child { border-bottom: none; }
+.rag-snippet:hover {
+  background: rgba(74, 144, 217, 0.12);
+  border-left-color: var(--blue);
+}
 
-.rag-num {
+.rag-snippet-num {
   font-size: 0.63rem;
   font-weight: 700;
-  color: var(--purple);
+  color: var(--blue);
   flex-shrink: 0;
-  min-width: 12px;
-  margin-top: 1px;
+  min-width: 14px;
+  text-align: center;
+  padding-top: 1px;
 }
 
-.rag-text { color: var(--text-2); flex: 1; font-family: var(--sans); }
+.rag-snippet-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.rag-technique-id {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--green);
+  font-family: var(--mono);
+  letter-spacing: 0.05em;
+}
+
+.rag-technique-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.rag-tactics {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.rag-tactic {
+  display: inline-block;
+  font-size: 0.62rem;
+  padding: 2px 5px;
+  background: rgba(58, 173, 112, 0.15);
+  border: 1px solid rgba(58, 173, 112, 0.3);
+  color: var(--green);
+  border-radius: 2px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.rag-description {
+  font-size: 0.66rem;
+  color: var(--text-2);
+  line-height: 1.6;
+  font-family: var(--sans);
+}
 
 /* Raw toggle */
 .raw-toggle {

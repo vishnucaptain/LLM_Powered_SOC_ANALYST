@@ -20,6 +20,7 @@ langchain-huggingface==0.1.2
 
 # ── Vector Database ───────────────────────────────────────────────
 chromadb==0.6.3
+langchain-chroma==0.2.4
 
 # ── Sentence Embeddings ───────────────────────────────────────────
 sentence-transformers==3.4.1
@@ -48,6 +49,9 @@ requests==2.32.3
 # ── JSON/utility ─────────────────────────────────────────────────
 orjson==3.10.16
 rich==13.9.4
-
+# ── JWT Authentication ───────────────────────────────────────────
+PyJWT==2.12.1
+python-jose==3.5.0
+python-multipart==0.0.7
 # ── Visualization (for training curves — optional) ───────────────
 matplotlib==3.10.0
