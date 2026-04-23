@@ -1,0 +1,14 @@
+Metric,Value
+Accuracy,0.9513
+Precision,0.9215
+Recall,0.88
+F1 Score,0.9003
+False Positive Rate,0.025
+Specificity,0.975
+ROC-AUC,0.9768
+Optimal Threshold,0.0004
+True Positives,880
+True Negatives,2925
+False Positives,75
+False Negatives,120
+Total Samples,4000

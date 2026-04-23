@@ -26,7 +26,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
 from typing import Tuple
 
-from backend.lstm_model import LSTMAutoencoder, PAD_IDX, MODEL_PATH
+from backend.models.lstm_model import LSTMAutoencoder, PAD_IDX, MODEL_PATH
 
 # ── Hyperparameters ───────────────────────────────────────────────────────────
 BATCH_SIZE    = 64

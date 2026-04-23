@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from backend.lstm_model import LSTMAutoencoder, MODEL_PATH
+from backend.models.lstm_model import LSTMAutoencoder, MODEL_PATH
 
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")

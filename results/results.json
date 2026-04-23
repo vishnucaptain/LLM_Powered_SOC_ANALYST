@@ -1,0 +1,50 @@
+{
+  "system": "LLM-Powered SOC Analyst",
+  "model": "LSTM Sequence Autoencoder",
+  "dataset": {
+    "normal_samples": 3000,
+    "attack_samples": 1000,
+    "total_samples": 4000
+  },
+  "classification_metrics": {
+    "accuracy": 0.9513,
+    "precision": 0.9215,
+    "recall": 0.88,
+    "f1_score": 0.9003,
+    "false_positive_rate": 0.025,
+    "specificity": 0.975
+  },
+  "roc_auc": 0.9768,
+  "optimal_threshold": 0.0004,
+  "confusion_matrix": {
+    "TP": 880,
+    "TN": 2925,
+    "FP": 75,
+    "FN": 120
+  },
+  "loss_distribution": {
+    "normal_mean": 0.0001,
+    "normal_std": 0.0001,
+    "attack_mean": 0.1293,
+    "attack_std": 0.1173,
+    "separation": 0.1292
+  },
+  "rag_evaluation": {
+    "top_1": {
+      "hits": 5,
+      "total": 10,
+      "hit_rate": 0.5
+    },
+    "top_3": {
+      "hits": 8,
+      "total": 10,
+      "hit_rate": 0.8
+    },
+    "top_5": {
+      "hits": 10,
+      "total": 10,
+      "hit_rate": 1.0
+    }
+  },
+  "evaluation_time_seconds": 13.17
+}
