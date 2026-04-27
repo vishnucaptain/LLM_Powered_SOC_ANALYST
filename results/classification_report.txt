@@ -1,13 +1,13 @@
-╔════════════════════════════════════════════════════════════════════╗
-║       LLM-POWERED SOC ANALYST — CLASSIFICATION REPORT            ║
-╚════════════════════════════════════════════════════════════════════╝
+
+LLM-POWERED SOC ANALYST — CLASSIFICATION REPORT            
+
 
 Model         : LSTM Sequence Autoencoder (Unsupervised)
 Dataset       : 4000 samples (Normal + Attack sequences)
 ROC-AUC       : 0.9768
 Opt. Threshold: 0.0004
 
-─── Classification Metrics ────────────────────────────────────────
+Classification Metrics
   Accuracy          : 0.9513   (95.1%)
   Precision         : 0.9215
   Recall (TPR)      : 0.8800
@@ -15,14 +15,9 @@ Opt. Threshold: 0.0004
   False Pos. Rate   : 0.0250
   Specificity (TNR) : 0.9750
 
-─── Confusion Matrix ──────────────────────────────────────────────
-                    Predicted Normal   Predicted Attack
-  Actual Normal     TN = 2925           FP = 75
-  Actual Attack     FN = 120            TP = 880
 
-─── Loss Distribution ─────────────────────────────────────────────
+Loss Distribution 
   Normal μ  : 0.0001  (σ = 0.0001)
   Attack μ  : 0.1293  (σ = 0.1173)
   Separation: 0.1292
 
-═════════════════════════════════════════════════════════════════════
