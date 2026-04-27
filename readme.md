@@ -842,6 +842,6 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 Made with ❤️ by [Akash](https://github.com/akash4426)
 
-<sub>Built with Gemini LLM • LangChain • MITRE ATT&CK • FastAPI • ChromaDB</sub>
+<sub>Built with LLM • LangChain • MITRE ATT&CK • FastAPI • ChromaDB</sub>
 
 </div>
